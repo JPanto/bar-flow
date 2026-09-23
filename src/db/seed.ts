@@ -14,7 +14,7 @@ export async function seedInitialData(database: BarMvpDB): Promise<void> {
   });
 
   // 2. Create Initial Tables
-  const t1 = await createTable(database, {
+  await createTable(database, {
     id: 'table-1',
     zoneId: mainZone.id,
     name: 'Mesa 1',
@@ -28,7 +28,7 @@ export async function seedInitialData(database: BarMvpDB): Promise<void> {
     status: 'available',
   });
 
-  const t2 = await createTable(database, {
+  await createTable(database, {
     id: 'table-2',
     zoneId: mainZone.id,
     name: 'Mesa 2',
