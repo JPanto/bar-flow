@@ -2,6 +2,7 @@ import { db } from '../db';
 
 export class SyncService {
   private apiUrl: string | undefined;
+  private authToken: string | null = null;
   private syncInterval: any = null;
   private isSyncing = false;
 
@@ -20,6 +21,14 @@ export class SyncService {
     return this.apiUrl;
   }
 
+  public setAuthToken(token: string | null) {
+    this.authToken = token;
+  }
+
+  public getAuthToken(): string | null {
+    return this.authToken;
+  }
+
   /**
    * Pulls authoritative state from PostgreSQL backend on startup/reconnect
    */
@@ -29,7 +38,12 @@ export class SyncService {
     }
 
     try {
-      const res = await fetch(`${this.apiUrl}/state/initial`);
+      const headers: Record<string, string> = {};
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+
+      const res = await fetch(`${this.apiUrl}/state/initial`, { headers });
       if (!res.ok) return;
 
       const data = await res.json();
@@ -77,11 +91,16 @@ export class SyncService {
         return;
       }
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (this.authToken) {
+        headers['Authorization'] = `Bearer ${this.authToken}`;
+      }
+
       const response = await fetch(`${this.apiUrl}/sync`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           events: pendingEvents.map((e) => ({
             id: String(e.id),
