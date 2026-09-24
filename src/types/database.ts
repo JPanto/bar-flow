@@ -6,7 +6,13 @@ export type ReservationStatus = 'confirmed' | 'seated' | 'cancelled' | 'no_show'
 
 export type SyncAction = 'INSERT' | 'UPDATE' | 'DELETE';
 
-export type SyncEntity = 'zone' | 'table' | 'reservation' | 'customer';
+export type SyncEntity =
+  | 'zone'
+  | 'table'
+  | 'reservation'
+  | 'customer'
+  | 'table_session'
+  | 'waiter_call';
 
 export type SyncStatus = 'pending' | 'synced' | 'failed';
 
@@ -57,6 +63,32 @@ export interface Customer {
   createdAt: number;
 }
 
+export interface TableSession {
+  id: string;
+  tableId: string;
+  sessionWord: string;
+  status: 'active' | 'closed';
+  openedAt: number;
+  closedAt?: number | null;
+}
+
+export type CallReason = 'waiter' | 'bill' | 'help';
+
+export type CallStatus = 'pending' | 'attending' | 'resolved' | 'cancelled';
+
+export interface WaiterCall {
+  id: string;
+  tableId: string;
+  sessionId: string;
+  tableName: string;
+  sessionWord: string;
+  reason: CallReason;
+  status: CallStatus;
+  createdAt: number;
+  attendingAt?: number | null;
+  resolvedAt?: number | null;
+}
+
 export interface SyncEvent {
   id?: number;
   entity: SyncEntity;
@@ -75,6 +107,8 @@ export interface DatabaseBackup {
     tables: TableElement[];
     reservations: Reservation[];
     customers: Customer[];
+    tableSessions?: TableSession[];
+    waiterCalls?: WaiterCall[];
     syncQueue: SyncEvent[];
   };
 }
