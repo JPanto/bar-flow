@@ -6,6 +6,7 @@ import {
   Wifi,
   WifiOff,
   Database,
+  BellRing,
 } from 'lucide-react';
 
 export type AppTab = 'service' | 'editor' | 'reservations';
@@ -15,6 +16,9 @@ interface NavbarProps {
   onSelectTab: (tab: AppTab) => void;
   isOnline: boolean;
   pendingSyncCount: number;
+  activeCallsCount?: number;
+  highestUrgencyColor?: string;
+  onOpenCallsQueue?: () => void;
   onOpenBackup: () => void;
 }
 
@@ -23,6 +27,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectTab,
   isOnline,
   pendingSyncCount,
+  activeCallsCount = 0,
+  highestUrgencyColor = '#10b981',
+  onOpenCallsQueue,
   onOpenBackup,
 }) => {
   return (
@@ -80,7 +87,32 @@ export const Navbar: React.FC<NavbarProps> = ({
       </nav>
 
       {/* Right status & Backup triggers */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-2.5">
+        {/* Waiter Calls Bell Notification Trigger */}
+        <button
+          onClick={onOpenCallsQueue}
+          className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all active:scale-95 ${
+            activeCallsCount > 0
+              ? 'bg-slate-900 border-amber-500/50 shadow-lg shadow-amber-950/40'
+              : 'bg-slate-800/80 hover:bg-slate-800 border-slate-700/80 text-slate-400 hover:text-white'
+          }`}
+          title="Ver cola de llamados de mesero"
+        >
+          <BellRing
+            className={`w-4 h-4 ${activeCallsCount > 0 ? 'animate-bounce' : ''}`}
+            style={{ color: activeCallsCount > 0 ? highestUrgencyColor : undefined }}
+          />
+          <span className="hidden md:inline text-slate-300">Llamados</span>
+          {activeCallsCount > 0 && (
+            <span
+              className="px-1.5 py-0.2 rounded-full text-[10px] font-black text-slate-950 shadow-sm"
+              style={{ backgroundColor: highestUrgencyColor }}
+            >
+              {activeCallsCount}
+            </span>
+          )}
+        </button>
+
         {/* Network status */}
         <div
           className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border ${
