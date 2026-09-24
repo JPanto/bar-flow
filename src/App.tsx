@@ -1,24 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import {
-  db,
-  createTable,
-  updateTable,
-  deleteTable,
-  createReservation,
-  seatReservation,
-  completeReservation,
-  cancelReservation,
-  createZone,
-  updateTableStatus,
-  startTableSession,
-  closeTableSession,
-  getActiveSessionForTable,
-  attendingWaiterCall,
-  resolveWaiterCall,
-} from './db';
-import { seedInitialData } from './db/seed';
-import { TableElement, Reservation, TableShape, TableStatus } from './types/database';
+import { db, createReservation, cancelReservation } from './db';
+import { TableElement, Reservation } from './types/database';
 import { Navbar, AppTab } from './components/layout/Navbar';
 import { ZoneTabs } from './components/croquis/ZoneTabs';
 import { CroquisCanvas } from './components/croquis/CroquisCanvas';
@@ -32,11 +15,10 @@ import { BackupModal } from './components/common/BackupModal';
 import { CustomerPortal } from './components/customer/CustomerPortal';
 import { CallsQueueDrawer } from './components/service/CallsQueueDrawer';
 import { TableQrModal } from './components/croquis/TableQrModal';
-import { generateSessionWord } from './utils/wordGenerator';
-import { calculateUrgency } from './utils/urgencyGradient';
-import { realtimeService } from './services/realtime';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
+import { useWaiterCalls } from './hooks/useWaiterCalls';
+import { useTableManagement } from './hooks/useTableManagement';
 import { syncService } from './services/syncService';
-import { playServiceChime } from './utils/soundAlert';
 
 export const App: React.FC = () => {
   // Query param detection for Customer Mobile View (?mesa=:tableId)
@@ -48,9 +30,37 @@ export const App: React.FC = () => {
 
   const [customerTableId, setCustomerTableId] = useState<string | null>(getInitialCustomerTableId);
   const [currentTab, setCurrentTab] = useState<AppTab>('service');
-  const [activeZoneId, setActiveZoneId] = useState<string>('');
-  const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
-  const [snapToGrid, setSnapToGrid] = useState(true);
+
+  // Modular Custom Hooks
+  const { isOnline, pendingSyncCount } = useRealtimeSync();
+  const {
+    sortedActiveCalls,
+    activeCallsCount,
+    highestUrgencyColor,
+    handleAttendCall,
+    handleResolveCall,
+  } = useWaiterCalls();
+  const {
+    zones,
+    activeZone,
+    setActiveZoneId,
+    allTables,
+    zoneTables,
+    selectedTableId,
+    setSelectedTableId,
+    selectedTable,
+    activeSessions,
+    snapToGrid,
+    setSnapToGrid,
+    handleAddTable,
+    handleUpdateTable,
+    handleDeleteSelected,
+    handleDeleteTable,
+    handleCreateZone,
+    handleUpdateTableStatus,
+    handleSeatReservation,
+    handleCompleteReservation,
+  } = useTableManagement();
 
   // Modals state
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
@@ -67,154 +77,19 @@ export const App: React.FC = () => {
   const today = new Date().toISOString().split('T')[0];
   const [selectedDate, setSelectedDate] = useState(today);
 
-  // Network online status
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
+  // Browser navigation popstate
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Initial seed check and sync initialization
-    seedInitialData(db);
-    syncService.start();
-
-    // Sync URL when browser back/forward buttons are pressed
     const handlePopState = () => {
       const params = new URLSearchParams(window.location.search);
       setCustomerTableId(params.get('mesa'));
     };
     window.addEventListener('popstate', handlePopState);
-
-    // Audio chime & Dexie synchronization on real-time event arrival
-    const unsubscribeRealtime = realtimeService.subscribe(async (event) => {
-      try {
-        if (event.type === 'CALL_CREATED') {
-          const call = (event.payload as any)?.call || event.payload;
-          if (call && call.id) {
-            await db.waiter_calls.put(call);
-            playServiceChime();
-          }
-        } else if (event.type === 'CALL_ATTENDING') {
-          const { callId, attendingAt } = (event.payload as any) || {};
-          if (callId) {
-            await db.waiter_calls.update(callId, {
-              status: 'attending',
-              attendingAt: attendingAt || Date.now(),
-            });
-          }
-        } else if (event.type === 'CALL_RESOLVED') {
-          const { callId, resolvedAt } = (event.payload as any) || {};
-          if (callId) {
-            await db.waiter_calls.update(callId, {
-              status: 'resolved',
-              resolvedAt: resolvedAt || Date.now(),
-            });
-          }
-        } else if (event.type === 'CALL_CANCELLED') {
-          const { callId } = (event.payload as any) || {};
-          if (callId) {
-            await db.waiter_calls.update(callId, {
-              status: 'cancelled',
-            });
-          }
-        } else if (event.type === 'SESSION_STARTED') {
-          const session = (event.payload as any)?.session || event.payload;
-          if (session && session.id) {
-            await db.table_sessions.put(session);
-          }
-        } else if (event.type === 'SESSION_CLOSED') {
-          const { tableId } = (event.payload as any) || {};
-          if (tableId) {
-            await db.table_sessions
-              .where({ tableId, status: 'active' })
-              .modify({ status: 'closed', closedAt: Date.now() });
-          }
-        } else if (event.type === 'TABLE_UPDATED') {
-          const table = (event.payload as any)?.table || event.payload;
-          if (table && table.id) {
-            await db.restaurantTables.put(table);
-          }
-        } else if (event.type === 'TABLE_DELETED') {
-          const { id } = (event.payload as any) || {};
-          if (id) {
-            await db.restaurantTables.delete(id);
-          }
-        } else if (event.type === 'ZONE_CREATED' || event.type === 'ZONE_UPDATED') {
-          const zone = (event.payload as any)?.zone || event.payload;
-          if (zone && zone.id) {
-            await db.zones.put(zone);
-          }
-        }
-      } catch (err) {
-        console.error('Error syncing incoming realtime event:', err);
-      }
-    });
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('popstate', handlePopState);
-      unsubscribeRealtime();
-      syncService.stop();
-    };
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Live queries from Dexie
-  const zones = useLiveQuery(() => db.zones.toArray()) || [];
-  const allTables = useLiveQuery(() => db.restaurantTables.toArray()) || [];
+  // Live reservations query
   const reservations = useLiveQuery(() => db.reservations.toArray()) || [];
-  const activeSessions =
-    useLiveQuery(() => db.table_sessions.where({ status: 'active' }).toArray()) || [];
-  const activeCalls =
-    useLiveQuery(() =>
-      db.waiter_calls.where('status').anyOf(['pending', 'attending']).toArray()
-    ) || [];
-  const pendingSyncCount =
-    useLiveQuery(() => db.sync_queue.where({ status: 'pending' }).count()) || 0;
 
-  // Strict FIFO sort (oldest call first) for waiter calls queue
-  const sortedActiveCalls = [...activeCalls].sort((a, b) => a.createdAt - b.createdAt);
-  const highestUrgency =
-    sortedActiveCalls.length > 0 ? calculateUrgency(sortedActiveCalls[0].createdAt) : null;
-  const highestUrgencyColor = highestUrgency ? highestUrgency.hslColor : '#10b981';
-
-  // Ensure any table currently occupied has an active session (auto-healing on startup)
-  useEffect(() => {
-    const ensureOccupiedSessions = async () => {
-      const occupiedTables = allTables.filter((t) => t.status === 'occupied');
-      for (const t of occupiedTables) {
-        const session = await getActiveSessionForTable(db, t.id);
-        if (!session) {
-          const currentSessions = await db.table_sessions.where({ status: 'active' }).toArray();
-          const activeWords = currentSessions.map((s) => s.sessionWord);
-          const word = generateSessionWord(activeWords);
-          await startTableSession(db, t.id, word);
-        }
-      }
-    };
-    if (allTables.length > 0) {
-      ensureOccupiedSessions();
-    }
-  }, [allTables]);
-
-  // Active Zone Resolution
-  useEffect(() => {
-    if (zones.length > 0 && !activeZoneId) {
-      const defaultZone = zones.find((z) => z.isDefault) || zones[0];
-      setActiveZoneId(defaultZone.id);
-    }
-  }, [zones, activeZoneId]);
-
-  const activeZone = zones.find((z) => z.id === activeZoneId) || zones[0];
-  const zoneTables = allTables.filter((t) => t.zoneId === activeZone?.id);
-
-  // Selected table object
-  const selectedTable = allTables.find((t) => t.id === selectedTableId) || null;
-
-  // Find active reservation for a given table on the current date
   const getActiveReservationForTable = (tableId: string): Reservation | null => {
     return (
       reservations.find(
@@ -224,27 +99,6 @@ export const App: React.FC = () => {
           (r.status === 'confirmed' || r.status === 'seated')
       ) || null
     );
-  };
-
-  // Waiter Call Queue Action Handlers
-  const handleAttendCall = async (callId: string) => {
-    await attendingWaiterCall(db, callId);
-    realtimeService.publish({
-      type: 'CALL_ATTENDING',
-      payload: { callId },
-      timestamp: Date.now(),
-    });
-    syncService.triggerSync();
-  };
-
-  const handleResolveCall = async (callId: string) => {
-    await resolveWaiterCall(db, callId);
-    realtimeService.publish({
-      type: 'CALL_RESOLVED',
-      payload: { callId },
-      timestamp: Date.now(),
-    });
-    syncService.triggerSync();
   };
 
   // Customer Portal Navigation Handlers
@@ -262,91 +116,11 @@ export const App: React.FC = () => {
     setCustomerTableId(tableId);
   };
 
-  // Handlers for Croquis Editor
-  const handleAddTable = async (
-    shape: TableShape,
-    seats: number,
-    width: number,
-    height: number,
-    namePrefix: string
-  ) => {
-    if (!activeZone) return;
-
-    const count = zoneTables.length + 1;
-    const newTable = await createTable(db, {
-      zoneId: activeZone.id,
-      name: `${namePrefix} ${count}`,
-      shape,
-      x: 200 + ((count * 30) % 300),
-      y: 200 + ((count * 20) % 200),
-      width,
-      height,
-      rotation: 0,
-      seats,
-      status: 'available',
-    });
-
-    realtimeService.publish({
-      type: 'TABLE_UPDATED',
-      payload: newTable,
-      timestamp: Date.now(),
-    });
-    syncService.triggerSync();
-
-    setSelectedTableId(newTable.id);
-  };
-
-  const handleUpdateTable = async (tableId: string, changes: Partial<TableElement>) => {
-    await updateTable(db, tableId, changes);
-    const updated = await db.restaurantTables.get(tableId);
-    if (updated) {
-      realtimeService.publish({
-        type: 'TABLE_UPDATED',
-        payload: updated,
-        timestamp: Date.now(),
-      });
-    }
-    syncService.triggerSync();
-  };
-
-  const handleDeleteSelected = async () => {
-    if (!selectedTableId) return;
-    if (confirm('¿Eliminar esta mesa del croquis?')) {
-      const idToDelete = selectedTableId;
-      await deleteTable(db, idToDelete);
-      realtimeService.publish({
-        type: 'TABLE_DELETED',
-        payload: { id: idToDelete },
-        timestamp: Date.now(),
-      });
-      syncService.triggerSync();
-      setSelectedTableId(null);
-    }
-  };
-
-  const handleCreateZone = async (name: string) => {
-    const newZone = await createZone(db, {
-      name,
-      width: 1600,
-      height: 1000,
-      isDefault: false,
-    });
-    realtimeService.publish({
-      type: 'ZONE_CREATED',
-      payload: newZone,
-      timestamp: Date.now(),
-    });
-    syncService.triggerSync();
-    setActiveZoneId(newZone.id);
-  };
-
-  // Handlers for Table Click in Service Mode
   const handleTableClick = (table: TableElement) => {
     setServiceTable(table);
     setIsServiceModalOpen(true);
   };
 
-  // Handlers for Reservations
   const handleSaveReservation = async (
     data: Omit<Reservation, 'id' | 'createdAt'> & { id?: string }
   ) => {
@@ -363,91 +137,7 @@ export const App: React.FC = () => {
     setIsReservationModalOpen(true);
   };
 
-  // Lifecycle Table Session Handlers
-  const handleUpdateTableStatus = async (tableId: string, status: TableStatus) => {
-    await updateTableStatus(db, tableId, status);
-    if (status === 'occupied') {
-      const existing = await getActiveSessionForTable(db, tableId);
-      if (!existing) {
-        const currentSessions = await db.table_sessions.where({ status: 'active' }).toArray();
-        const activeWords = currentSessions.map((s) => s.sessionWord);
-        const sessionWord = generateSessionWord(activeWords);
-        const session = await startTableSession(db, tableId, sessionWord);
-        realtimeService.publish({
-          type: 'SESSION_STARTED',
-          payload: { session },
-          timestamp: Date.now(),
-        });
-      }
-    } else if (status === 'available') {
-      await closeTableSession(db, tableId);
-      realtimeService.publish({
-        type: 'SESSION_CLOSED',
-        payload: { tableId },
-        timestamp: Date.now(),
-      });
-    }
-
-    const updated = await db.restaurantTables.get(tableId);
-    if (updated) {
-      realtimeService.publish({
-        type: 'TABLE_UPDATED',
-        payload: updated,
-        timestamp: Date.now(),
-      });
-    }
-    syncService.triggerSync();
-  };
-
-  const handleSeatReservation = async (reservationId: string, tableId: string) => {
-    await seatReservation(db, reservationId, tableId);
-    const existing = await getActiveSessionForTable(db, tableId);
-    if (!existing) {
-      const currentSessions = await db.table_sessions.where({ status: 'active' }).toArray();
-      const activeWords = currentSessions.map((s) => s.sessionWord);
-      const sessionWord = generateSessionWord(activeWords);
-      const session = await startTableSession(db, tableId, sessionWord);
-      realtimeService.publish({
-        type: 'SESSION_STARTED',
-        payload: { session },
-        timestamp: Date.now(),
-      });
-    }
-
-    const updated = await db.restaurantTables.get(tableId);
-    if (updated) {
-      realtimeService.publish({
-        type: 'TABLE_UPDATED',
-        payload: updated,
-        timestamp: Date.now(),
-      });
-    }
-    syncService.triggerSync();
-  };
-
-  const handleCompleteReservation = async (reservationId: string, tableId?: string | null) => {
-    await completeReservation(db, reservationId, tableId || '');
-    if (tableId) {
-      await closeTableSession(db, tableId);
-      realtimeService.publish({
-        type: 'SESSION_CLOSED',
-        payload: { tableId },
-        timestamp: Date.now(),
-      });
-
-      const updated = await db.restaurantTables.get(tableId);
-      if (updated) {
-        realtimeService.publish({
-          type: 'TABLE_UPDATED',
-          payload: updated,
-          timestamp: Date.now(),
-        });
-      }
-    }
-    syncService.triggerSync();
-  };
-
-  // If URL has ?mesa=:tableId or user triggered simulation, render the full mobile customer experience
+  // If customer mode is active (?mesa=:tableId), render Customer Portal
   if (customerTableId) {
     return (
       <CustomerPortal
@@ -473,13 +163,13 @@ export const App: React.FC = () => {
         onSelectTab={setCurrentTab}
         isOnline={isOnline}
         pendingSyncCount={pendingSyncCount}
-        activeCallsCount={sortedActiveCalls.length}
+        activeCallsCount={activeCallsCount}
         highestUrgencyColor={highestUrgencyColor}
         onOpenCallsQueue={() => setIsCallsDrawerOpen(true)}
         onOpenBackup={() => setIsBackupOpen(true)}
       />
 
-      {/* 2. Zone Tabs (Shown in Service & Editor modes) */}
+      {/* 2. Zone Tabs */}
       {currentTab !== 'reservations' && (
         <ZoneTabs
           zones={zones}
@@ -490,7 +180,7 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* 3. Live Service Operational Stats Bar (Shown only in Service mode) */}
+      {/* 3. Operational Stats Bar */}
       {currentTab === 'service' && <ServiceStatsBar tables={zoneTables} />}
 
       {/* 4. Main Body Content */}
@@ -508,19 +198,17 @@ export const App: React.FC = () => {
           />
         ) : (
           <div className="relative flex-1 w-full h-full">
-            {/* Editor Floating Toolbar (Only in Editor Mode) */}
             {currentTab === 'editor' && (
               <EditorToolbar
                 onAddTable={handleAddTable}
                 snapToGrid={snapToGrid}
-                onToggleSnap={() => setSnapToGrid(!snapToGrid)}
+                onToggleSnap={() => setSnapToGrid((prev) => !prev)}
                 selectedTable={selectedTable}
                 onOpenInspector={() => setIsInspectorOpen(true)}
                 onDeleteSelected={handleDeleteSelected}
               />
             )}
 
-            {/* Interactive Croquis Canvas */}
             <CroquisCanvas
               zone={activeZone}
               tables={zoneTables}
@@ -537,25 +225,14 @@ export const App: React.FC = () => {
       </main>
 
       {/* Modals */}
-      {/* Table Property Inspector Modal (Editor Mode) */}
       <TableInspectorModal
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         table={selectedTable}
         onSave={handleUpdateTable}
-        onDelete={async (id) => {
-          await deleteTable(db, id);
-          realtimeService.publish({
-            type: 'TABLE_DELETED',
-            payload: { id },
-            timestamp: Date.now(),
-          });
-          syncService.triggerSync();
-          setSelectedTableId(null);
-        }}
+        onDelete={handleDeleteTable}
       />
 
-      {/* Table Service Modal (Service Mode) */}
       <TableServiceModal
         isOpen={isServiceModalOpen}
         onClose={() => setIsServiceModalOpen(false)}
@@ -583,7 +260,6 @@ export const App: React.FC = () => {
         onResolveCall={handleResolveCall}
       />
 
-      {/* Direct Reservation Modal */}
       <ReservationModal
         isOpen={isReservationModalOpen}
         onClose={() => {
@@ -595,14 +271,12 @@ export const App: React.FC = () => {
         defaultTableId={reservationDefaultTableId}
       />
 
-      {/* Offline Backup & Outbox Sync Modal */}
       <BackupModal
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
         pendingSyncCount={pendingSyncCount}
       />
 
-      {/* Waiter Calls Priority Queue Drawer */}
       <CallsQueueDrawer
         isOpen={isCallsDrawerOpen}
         onClose={() => setIsCallsDrawerOpen(false)}
@@ -611,7 +285,6 @@ export const App: React.FC = () => {
         onResolve={handleResolveCall}
       />
 
-      {/* Table QR Access Modal */}
       <TableQrModal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
