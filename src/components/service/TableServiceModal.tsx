@@ -1,6 +1,7 @@
 import React from 'react';
-import { TableElement, Reservation, TableStatus } from '../../types/database';
+import { TableElement, Reservation, TableStatus, TableSession, WaiterCall } from '../../types/database';
 import { getTableStatusColors } from '../../utils/canvasUtils';
+import { calculateUrgency } from '../../utils/urgencyGradient';
 import {
   X,
   Users,
@@ -11,32 +12,46 @@ import {
   UserCheck,
   Calendar,
   AlertCircle,
+  QrCode,
+  BellRing,
+  Navigation,
 } from 'lucide-react';
 
 interface TableServiceModalProps {
   table: TableElement | null;
   activeReservation: Reservation | null;
+  activeSession?: TableSession | null;
+  activeCall?: WaiterCall | null;
   isOpen: boolean;
   onClose: () => void;
   onUpdateStatus: (tableId: string, status: TableStatus) => void;
   onSeatReservation: (reservationId: string, tableId: string) => void;
   onCompleteReservation: (reservationId: string, tableId: string) => void;
   onOpenReservationForm: (tableId: string) => void;
+  onOpenQrModal?: (table: TableElement) => void;
+  onAttendCall?: (callId: string) => void;
+  onResolveCall?: (callId: string) => void;
 }
 
 export const TableServiceModal: React.FC<TableServiceModalProps> = ({
   table,
   activeReservation,
+  activeSession,
+  activeCall,
   isOpen,
   onClose,
   onUpdateStatus,
   onSeatReservation,
   onCompleteReservation,
   onOpenReservationForm,
+  onOpenQrModal,
+  onAttendCall,
+  onResolveCall,
 }) => {
   if (!isOpen || !table) return null;
 
   const statusColors = getTableStatusColors(table.status);
+  const callUrgency = activeCall ? calculateUrgency(activeCall.createdAt) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
@@ -67,9 +82,16 @@ export const TableServiceModal: React.FC<TableServiceModalProps> = ({
                   {statusColors.label}
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Capacidad máxima: {table.seats} comensales
-              </p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-xs text-slate-400">
+                  Capacidad: {table.seats} comensales
+                </p>
+                {activeSession && (
+                  <span className="font-mono text-[11px] font-bold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-800/40">
+                    {activeSession.sessionWord}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -82,7 +104,61 @@ export const TableServiceModal: React.FC<TableServiceModalProps> = ({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+          {/* Active Call Notification Alert (If table has pending call) */}
+          {activeCall && callUrgency && (
+            <div
+              className="border rounded-2xl p-3.5 space-y-2.5 shadow-lg"
+              style={{
+                backgroundColor: callUrgency.hslBgColor,
+                borderColor: callUrgency.hslColor,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
+                  <BellRing className="w-4 h-4 text-amber-400 animate-bounce" />
+                  <span>
+                    Llamado Activo: {activeCall.reason === 'bill' ? 'Pedir Cuenta' : 'Llamar Mesero'}
+                  </span>
+                </div>
+                <span
+                  className="text-[11px] font-extrabold px-2 py-0.5 rounded-full text-slate-950"
+                  style={{ backgroundColor: callUrgency.hslColor }}
+                >
+                  {callUrgency.formattedTime}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                {activeCall.status === 'pending' ? (
+                  <button
+                    onClick={() => {
+                      if (onAttendCall) onAttendCall(activeCall.id);
+                    }}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-700 transition-colors"
+                  >
+                    <Navigation className="w-3.5 h-3.5 text-sky-400" />
+                    <span>En camino</span>
+                  </button>
+                ) : (
+                  <span className="flex-1 text-center py-1.5 text-xs text-emerald-400 font-semibold bg-emerald-950/60 rounded-xl">
+                    Atendiendo
+                  </span>
+                )}
+
+                <button
+                  onClick={() => {
+                    if (onResolveCall) onResolveCall(activeCall.id);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-md transition-colors"
+                >
+                  <CheckCircle className="w-3.5 h-3.5" />
+                  <span>Resolver</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Active Reservation Details Card (if any) */}
           {activeReservation ? (
             <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 space-y-3">
@@ -142,7 +218,7 @@ export const TableServiceModal: React.FC<TableServiceModalProps> = ({
               )}
             </div>
           ) : (
-            <div className="text-xs text-slate-400 bg-slate-950/50 p-3.5 rounded-xl border border-slate-800/80 flex items-center gap-2">
+            <div className="text-xs text-slate-400 bg-slate-950/50 p-3 rounded-xl border border-slate-800/80 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />
               <span>No hay reservas vinculadas a esta mesa en este momento.</span>
             </div>
@@ -151,7 +227,7 @@ export const TableServiceModal: React.FC<TableServiceModalProps> = ({
           {/* Quick Status Action Grid */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Acciones Rápidas
+              Acciones de Mesa
             </label>
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -204,6 +280,18 @@ export const TableServiceModal: React.FC<TableServiceModalProps> = ({
                   Quitar Reserva
                 </button>
               )}
+
+              {/* QR Code and Customer Link launcher button */}
+              <button
+                onClick={() => {
+                  if (onOpenQrModal) onOpenQrModal(table);
+                  onClose();
+                }}
+                className="col-span-2 flex items-center justify-center gap-2 py-2.5 px-4 font-semibold text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 transition-all shadow-md"
+              >
+                <QrCode className="w-4 h-4" />
+                <span>Código QR & Vista Cliente Móvil</span>
+              </button>
 
               <button
                 onClick={() => {

@@ -11,9 +11,14 @@ import {
   cancelReservation,
   createZone,
   updateTableStatus,
+  startTableSession,
+  closeTableSession,
+  getActiveSessionForTable,
+  attendingWaiterCall,
+  resolveWaiterCall,
 } from './db';
 import { seedInitialData } from './db/seed';
-import { TableElement, Reservation, TableShape } from './types/database';
+import { TableElement, Reservation, TableShape, TableStatus } from './types/database';
 import { Navbar, AppTab } from './components/layout/Navbar';
 import { ZoneTabs } from './components/croquis/ZoneTabs';
 import { CroquisCanvas } from './components/croquis/CroquisCanvas';
@@ -24,8 +29,23 @@ import { TableServiceModal } from './components/service/TableServiceModal';
 import { ReservationView } from './components/reservations/ReservationView';
 import { ReservationModal } from './components/reservations/ReservationModal';
 import { BackupModal } from './components/common/BackupModal';
+import { CustomerPortal } from './components/customer/CustomerPortal';
+import { CallsQueueDrawer } from './components/service/CallsQueueDrawer';
+import { TableQrModal } from './components/croquis/TableQrModal';
+import { generateSessionWord } from './utils/wordGenerator';
+import { calculateUrgency } from './utils/urgencyGradient';
+import { realtimeService } from './services/realtime';
+import { playServiceChime } from './utils/soundAlert';
 
 export const App: React.FC = () => {
+  // Query param detection for Customer Mobile View (?mesa=:tableId)
+  const getInitialCustomerTableId = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('mesa');
+  };
+
+  const [customerTableId, setCustomerTableId] = useState<string | null>(getInitialCustomerTableId);
   const [currentTab, setCurrentTab] = useState<AppTab>('service');
   const [activeZoneId, setActiveZoneId] = useState<string>('');
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -38,6 +58,9 @@ export const App: React.FC = () => {
   const [isReservationModalOpen, setIsReservationModalOpen] = useState(false);
   const [reservationDefaultTableId, setReservationDefaultTableId] = useState<string | null>(null);
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isCallsDrawerOpen, setIsCallsDrawerOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [qrTable, setQrTable] = useState<TableElement | null>(null);
 
   // Selected date for reservations
   const today = new Date().toISOString().split('T')[0];
@@ -56,9 +79,25 @@ export const App: React.FC = () => {
     // Initial seed check
     seedInitialData(db);
 
+    // Sync URL when browser back/forward buttons are pressed
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      setCustomerTableId(params.get('mesa'));
+    };
+    window.addEventListener('popstate', handlePopState);
+
+    // Audio chime on real-time call arrival
+    const unsubscribeRealtime = realtimeService.subscribe((event) => {
+      if (event.type === 'CALL_CREATED') {
+        playServiceChime();
+      }
+    });
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('popstate', handlePopState);
+      unsubscribeRealtime();
     };
   }, []);
 
@@ -66,8 +105,39 @@ export const App: React.FC = () => {
   const zones = useLiveQuery(() => db.zones.toArray()) || [];
   const allTables = useLiveQuery(() => db.restaurantTables.toArray()) || [];
   const reservations = useLiveQuery(() => db.reservations.toArray()) || [];
+  const activeSessions =
+    useLiveQuery(() => db.table_sessions.where({ status: 'active' }).toArray()) || [];
+  const activeCalls =
+    useLiveQuery(() =>
+      db.waiter_calls.where('status').anyOf(['pending', 'attending']).toArray()
+    ) || [];
   const pendingSyncCount =
     useLiveQuery(() => db.sync_queue.where({ status: 'pending' }).count()) || 0;
+
+  // Strict FIFO sort (oldest call first) for waiter calls queue
+  const sortedActiveCalls = [...activeCalls].sort((a, b) => a.createdAt - b.createdAt);
+  const highestUrgency =
+    sortedActiveCalls.length > 0 ? calculateUrgency(sortedActiveCalls[0].createdAt) : null;
+  const highestUrgencyColor = highestUrgency ? highestUrgency.hslColor : '#10b981';
+
+  // Ensure any table currently occupied has an active session (auto-healing on startup)
+  useEffect(() => {
+    const ensureOccupiedSessions = async () => {
+      const occupiedTables = allTables.filter((t) => t.status === 'occupied');
+      for (const t of occupiedTables) {
+        const session = await getActiveSessionForTable(db, t.id);
+        if (!session) {
+          const currentSessions = await db.table_sessions.where({ status: 'active' }).toArray();
+          const activeWords = currentSessions.map((s) => s.sessionWord);
+          const word = generateSessionWord(activeWords);
+          await startTableSession(db, t.id, word);
+        }
+      }
+    };
+    if (allTables.length > 0) {
+      ensureOccupiedSessions();
+    }
+  }, [allTables]);
 
   // Active Zone Resolution
   useEffect(() => {
@@ -93,6 +163,40 @@ export const App: React.FC = () => {
           (r.status === 'confirmed' || r.status === 'seated')
       ) || null
     );
+  };
+
+  // Waiter Call Queue Action Handlers
+  const handleAttendCall = async (callId: string) => {
+    await attendingWaiterCall(db, callId);
+    realtimeService.publish({
+      type: 'CALL_ATTENDING',
+      payload: { callId },
+      timestamp: Date.now(),
+    });
+  };
+
+  const handleResolveCall = async (callId: string) => {
+    await resolveWaiterCall(db, callId);
+    realtimeService.publish({
+      type: 'CALL_RESOLVED',
+      payload: { callId },
+      timestamp: Date.now(),
+    });
+  };
+
+  // Customer Portal Navigation Handlers
+  const handleExitCustomerPortal = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('mesa');
+    window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+    setCustomerTableId(null);
+  };
+
+  const handleSimulateCustomer = (tableId: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('mesa', tableId);
+    window.history.pushState({}, '', url.toString());
+    setCustomerTableId(tableId);
   };
 
   // Handlers for Croquis Editor
@@ -166,6 +270,70 @@ export const App: React.FC = () => {
     setIsReservationModalOpen(true);
   };
 
+  // Lifecycle Table Session Handlers
+  const handleUpdateTableStatus = async (tableId: string, status: TableStatus) => {
+    await updateTableStatus(db, tableId, status);
+    if (status === 'occupied') {
+      const existing = await getActiveSessionForTable(db, tableId);
+      if (!existing) {
+        const currentSessions = await db.table_sessions.where({ status: 'active' }).toArray();
+        const activeWords = currentSessions.map((s) => s.sessionWord);
+        const sessionWord = generateSessionWord(activeWords);
+        const session = await startTableSession(db, tableId, sessionWord);
+        realtimeService.publish({
+          type: 'SESSION_STARTED',
+          payload: { session },
+          timestamp: Date.now(),
+        });
+      }
+    } else if (status === 'available') {
+      await closeTableSession(db, tableId);
+      realtimeService.publish({
+        type: 'SESSION_CLOSED',
+        payload: { tableId },
+        timestamp: Date.now(),
+      });
+    }
+  };
+
+  const handleSeatReservation = async (reservationId: string, tableId: string) => {
+    await seatReservation(db, reservationId, tableId);
+    const existing = await getActiveSessionForTable(db, tableId);
+    if (!existing) {
+      const currentSessions = await db.table_sessions.where({ status: 'active' }).toArray();
+      const activeWords = currentSessions.map((s) => s.sessionWord);
+      const sessionWord = generateSessionWord(activeWords);
+      const session = await startTableSession(db, tableId, sessionWord);
+      realtimeService.publish({
+        type: 'SESSION_STARTED',
+        payload: { session },
+        timestamp: Date.now(),
+      });
+    }
+  };
+
+  const handleCompleteReservation = async (reservationId: string, tableId?: string | null) => {
+    await completeReservation(db, reservationId, tableId || '');
+    if (tableId) {
+      await closeTableSession(db, tableId);
+      realtimeService.publish({
+        type: 'SESSION_CLOSED',
+        payload: { tableId },
+        timestamp: Date.now(),
+      });
+    }
+  };
+
+  // If URL has ?mesa=:tableId or user triggered simulation, render the full mobile customer experience
+  if (customerTableId) {
+    return (
+      <CustomerPortal
+        tableId={customerTableId}
+        onExitToStaff={handleExitCustomerPortal}
+      />
+    );
+  }
+
   if (!activeZone) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 text-slate-400">
@@ -182,6 +350,9 @@ export const App: React.FC = () => {
         onSelectTab={setCurrentTab}
         isOnline={isOnline}
         pendingSyncCount={pendingSyncCount}
+        activeCallsCount={sortedActiveCalls.length}
+        highestUrgencyColor={highestUrgencyColor}
+        onOpenCallsQueue={() => setIsCallsDrawerOpen(true)}
         onOpenBackup={() => setIsBackupOpen(true)}
       />
 
@@ -208,8 +379,8 @@ export const App: React.FC = () => {
             selectedDate={selectedDate}
             onSelectDate={setSelectedDate}
             onSaveReservation={handleSaveReservation}
-            onSeatReservation={(rId, tId) => seatReservation(db, rId, tId)}
-            onCompleteReservation={(rId, tId) => completeReservation(db, rId, tId)}
+            onSeatReservation={handleSeatReservation}
+            onCompleteReservation={handleCompleteReservation}
             onCancelReservation={(rId, tId) => cancelReservation(db, rId, tId)}
           />
         ) : (
@@ -233,6 +404,7 @@ export const App: React.FC = () => {
               selectedTableId={selectedTableId}
               isEditorMode={currentTab === 'editor'}
               snapToGrid={snapToGrid}
+              activeCalls={sortedActiveCalls}
               onSelectTable={setSelectedTableId}
               onUpdateTable={handleUpdateTable}
               onTableClick={handleTableClick}
@@ -260,10 +432,26 @@ export const App: React.FC = () => {
         onClose={() => setIsServiceModalOpen(false)}
         table={serviceTable}
         activeReservation={serviceTable ? getActiveReservationForTable(serviceTable.id) : null}
-        onUpdateStatus={(id, status) => updateTableStatus(db, id, status)}
-        onSeatReservation={(rId, tId) => seatReservation(db, rId, tId)}
-        onCompleteReservation={(rId, tId) => completeReservation(db, rId, tId)}
+        activeSession={
+          serviceTable
+            ? activeSessions.find((s) => s.tableId === serviceTable.id) || null
+            : null
+        }
+        activeCall={
+          serviceTable
+            ? sortedActiveCalls.find((c) => c.tableId === serviceTable.id) || null
+            : null
+        }
+        onUpdateStatus={handleUpdateTableStatus}
+        onSeatReservation={handleSeatReservation}
+        onCompleteReservation={handleCompleteReservation}
         onOpenReservationForm={handleOpenReservationFormForTable}
+        onOpenQrModal={(table) => {
+          setQrTable(table);
+          setIsQrModalOpen(true);
+        }}
+        onAttendCall={handleAttendCall}
+        onResolveCall={handleResolveCall}
       />
 
       {/* Direct Reservation Modal */}
@@ -283,6 +471,28 @@ export const App: React.FC = () => {
         isOpen={isBackupOpen}
         onClose={() => setIsBackupOpen(false)}
         pendingSyncCount={pendingSyncCount}
+      />
+
+      {/* Waiter Calls Priority Queue Drawer */}
+      <CallsQueueDrawer
+        isOpen={isCallsDrawerOpen}
+        onClose={() => setIsCallsDrawerOpen(false)}
+        calls={sortedActiveCalls}
+        onAttend={handleAttendCall}
+        onResolve={handleResolveCall}
+      />
+
+      {/* Table QR Access Modal */}
+      <TableQrModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        table={qrTable}
+        session={
+          qrTable
+            ? activeSessions.find((s) => s.tableId === qrTable.id) || null
+            : null
+        }
+        onSimulateInApp={handleSimulateCustomer}
       />
     </div>
   );

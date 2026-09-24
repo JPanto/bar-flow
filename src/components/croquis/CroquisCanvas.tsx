@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Transformer } from 'react-konva';
 import Konva from 'konva';
-import { Zone, TableElement } from '../../types/database';
+import { Zone, TableElement, WaiterCall } from '../../types/database';
 import { GridBackground } from './GridBackground';
 import { TableNode } from './TableNode';
 import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
@@ -12,6 +12,7 @@ interface CroquisCanvasProps {
   selectedTableId: string | null;
   isEditorMode: boolean;
   snapToGrid: boolean;
+  activeCalls?: WaiterCall[];
   onSelectTable: (tableId: string | null) => void;
   onUpdateTable: (tableId: string, changes: Partial<TableElement>) => void;
   onTableClick: (table: TableElement) => void;
@@ -23,6 +24,7 @@ export const CroquisCanvas: React.FC<CroquisCanvasProps> = ({
   selectedTableId,
   isEditorMode,
   snapToGrid,
+  activeCalls = [],
   onSelectTable,
   onUpdateTable,
   onTableClick,
@@ -35,6 +37,13 @@ export const CroquisCanvas: React.FC<CroquisCanvasProps> = ({
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [scale, setScale] = useState(1);
   const [position, setPosition] = useState({ x: 40, y: 40 });
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Live timer tick every 1s for halo urgency updates
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Update container size on resize
   useEffect(() => {
@@ -157,19 +166,27 @@ export const CroquisCanvas: React.FC<CroquisCanvasProps> = ({
 
         {/* Layer 2: Tables & Chairs */}
         <Layer>
-          {tables.map((table) => (
-            <TableNode
-              key={table.id}
-              table={table}
-              isSelected={isEditorMode && selectedTableId === table.id}
-              isEditorMode={isEditorMode}
-              snapToGridEnabled={snapToGrid}
-              onSelect={onSelectTable}
-              onChange={onUpdateTable}
-              onClick={onTableClick}
-              registerNodeRef={registerNodeRef}
-            />
-          ))}
+          {tables.map((table) => {
+            const tableCall = activeCalls.find(
+              (c) => c.tableId === table.id && (c.status === 'pending' || c.status === 'attending')
+            );
+
+            return (
+              <TableNode
+                key={table.id}
+                table={table}
+                isSelected={isEditorMode && selectedTableId === table.id}
+                isEditorMode={isEditorMode}
+                snapToGridEnabled={snapToGrid}
+                activeCall={tableCall}
+                currentTime={currentTime}
+                onSelect={onSelectTable}
+                onChange={onUpdateTable}
+                onClick={onTableClick}
+                registerNodeRef={registerNodeRef}
+              />
+            );
+          })}
 
           {/* Transformer handles for active selection */}
           {isEditorMode && (

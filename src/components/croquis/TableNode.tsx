@@ -1,15 +1,18 @@
 import React, { useRef, useEffect } from 'react';
 import { Group, Rect, Circle, Text } from 'react-konva';
 import Konva from 'konva';
-import { TableElement } from '../../types/database';
+import { TableElement, WaiterCall } from '../../types/database';
 import { getChairsForTable } from '../../utils/chairGeometry';
 import { getTableStatusColors, snapToGrid } from '../../utils/canvasUtils';
+import { calculateUrgency } from '../../utils/urgencyGradient';
 
 interface TableNodeProps {
   table: TableElement;
   isSelected: boolean;
   isEditorMode: boolean;
   snapToGridEnabled: boolean;
+  activeCall?: WaiterCall;
+  currentTime?: number;
   onSelect: (tableId: string) => void;
   onChange: (tableId: string, changes: Partial<TableElement>) => void;
   onClick: (table: TableElement) => void;
@@ -21,6 +24,8 @@ export const TableNode: React.FC<TableNodeProps> = ({
   isSelected,
   isEditorMode,
   snapToGridEnabled,
+  activeCall,
+  currentTime,
   onSelect,
   onChange,
   onClick,
@@ -29,6 +34,7 @@ export const TableNode: React.FC<TableNodeProps> = ({
   const groupRef = useRef<Konva.Group>(null);
   const statusColors = getTableStatusColors(table.status);
   const chairs = getChairsForTable(table.shape, table.width, table.height, table.seats);
+  const callUrgency = activeCall ? calculateUrgency(activeCall.createdAt, currentTime) : null;
 
   useEffect(() => {
     if (registerNodeRef) {
@@ -61,7 +67,6 @@ export const TableNode: React.FC<TableNodeProps> = ({
     const scaleX = node.scaleX();
     const scaleY = node.scaleY();
 
-    // Reset node scale to 1 and adapt width/height
     node.scaleX(1);
     node.scaleY(1);
 
@@ -117,6 +122,52 @@ export const TableNode: React.FC<TableNodeProps> = ({
         }
       }}
     >
+      {/* 0. Glowing Chromatic Call Halo Ring (When table is calling waiter) */}
+      {activeCall && callUrgency && (
+        <>
+          {table.shape === 'round' ? (
+            <Circle
+              x={table.width / 2}
+              y={table.height / 2}
+              radius={table.width / 2 + 10}
+              stroke={callUrgency.hexColor}
+              strokeWidth={3.5}
+              dash={[8, 4]}
+              shadowColor={callUrgency.hexColor}
+              shadowBlur={18}
+              shadowOpacity={0.9}
+            />
+          ) : (
+            <Rect
+              x={-8}
+              y={-8}
+              width={table.width + 16}
+              height={table.height + 16}
+              cornerRadius={table.shape === 'counter' ? 8 : 16}
+              stroke={callUrgency.hexColor}
+              strokeWidth={3.5}
+              dash={[8, 4]}
+              shadowColor={callUrgency.hexColor}
+              shadowBlur={18}
+              shadowOpacity={0.9}
+            />
+          )}
+
+          {/* Call notification indicator badge above table */}
+          <Text
+            x={-20}
+            y={-28}
+            width={table.width + 40}
+            text={`🛎️ ${activeCall.reason === 'bill' ? 'CUENTA' : 'LLAMADO'} (${callUrgency.formattedTime})`}
+            fontSize={10}
+            fontStyle="bold"
+            fill={callUrgency.hexColor}
+            align="center"
+            listening={false}
+          />
+        </>
+      )}
+
       {/* 1. Chairs Layer */}
       {chairs.map((chair, idx) => (
         <Rect

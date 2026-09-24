@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, createWaiterCall, cancelWaiterCall } from '../../db';
+import {
+  db,
+  createWaiterCall,
+  cancelWaiterCall,
+  startTableSession,
+  updateTableStatus,
+} from '../../db';
+import { generateSessionWord } from '../../utils/wordGenerator';
 import { calculateUrgency } from '../../utils/urgencyGradient';
 import { realtimeService } from '../../services/realtime';
-import { CallReason, WaiterCall } from '../../types/database';
+import { CallReason } from '../../types/database';
 import {
   BellRing,
   Receipt,
@@ -50,6 +57,38 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
         .first(),
     [tableId]
   );
+
+  // Auto-start table session if none is currently active for this table
+  useEffect(() => {
+    if (!table || activeSession !== null) return;
+
+    let isMounted = true;
+    const initSession = async () => {
+      try {
+        const activeSessions = await db.table_sessions.where({ status: 'active' }).toArray();
+        const activeWords = activeSessions.map((s) => s.sessionWord);
+        const sessionWord = generateSessionWord(activeWords);
+        const session = await startTableSession(db, table.id, sessionWord);
+        if (table.status !== 'occupied') {
+          await updateTableStatus(db, table.id, 'occupied');
+        }
+        if (isMounted) {
+          realtimeService.publish({
+            type: 'SESSION_STARTED',
+            payload: { session },
+            timestamp: Date.now(),
+          });
+        }
+      } catch (err) {
+        console.error('Error starting table session:', err);
+      }
+    };
+
+    initSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [table, activeSession]);
 
   const urgency = activeCall
     ? calculateUrgency(activeCall.createdAt, currentTime)

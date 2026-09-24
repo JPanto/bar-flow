@@ -8,7 +8,6 @@ import {
   Clock,
   CheckCircle2,
   Navigation,
-  UserCheck,
   Receipt,
   HelpCircle,
   Volume2,
