@@ -10,6 +10,7 @@ import {
 import { generateSessionWord } from '../../utils/wordGenerator';
 import { calculateUrgency } from '../../utils/urgencyGradient';
 import { realtimeService } from '../../services/realtime';
+import { syncService } from '../../services/syncService';
 import { CallReason } from '../../types/database';
 import {
   BellRing,
@@ -78,6 +79,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
             payload: { session },
             timestamp: Date.now(),
           });
+          syncService.triggerSync();
         }
       } catch (err) {
         console.error('Error starting table session:', err);
@@ -121,6 +123,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
         payload: { call },
         timestamp: Date.now(),
       });
+      syncService.triggerSync();
     } finally {
       setIsSubmitting(false);
     }
@@ -134,6 +137,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
       payload: { callId: activeCall.id },
       timestamp: Date.now(),
     });
+    syncService.triggerSync();
   };
 
   if (!table) {

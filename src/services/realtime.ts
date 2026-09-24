@@ -4,7 +4,11 @@ export type RealtimeEventType =
   | 'CALL_RESOLVED'
   | 'CALL_CANCELLED'
   | 'SESSION_STARTED'
-  | 'SESSION_CLOSED';
+  | 'SESSION_CLOSED'
+  | 'TABLE_UPDATED'
+  | 'TABLE_DELETED'
+  | 'ZONE_CREATED'
+  | 'ZONE_UPDATED';
 
 export interface RealtimeEvent<T = any> {
   type: RealtimeEventType;
@@ -55,6 +59,14 @@ export class RealtimeService {
 
     try {
       this.ws = new WebSocket(this.wsUrl);
+
+      this.ws.onopen = () => {
+        try {
+          this.ws?.send(JSON.stringify({ action: 'subscribe', channel: 'staff' }));
+        } catch {
+          // ignore
+        }
+      };
 
       this.ws.onmessage = (event) => {
         try {

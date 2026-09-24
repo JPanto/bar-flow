@@ -35,6 +35,7 @@ import { TableQrModal } from './components/croquis/TableQrModal';
 import { generateSessionWord } from './utils/wordGenerator';
 import { calculateUrgency } from './utils/urgencyGradient';
 import { realtimeService } from './services/realtime';
+import { syncService } from './services/syncService';
 import { playServiceChime } from './utils/soundAlert';
 
 export const App: React.FC = () => {
@@ -76,8 +77,9 @@ export const App: React.FC = () => {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Initial seed check
+    // Initial seed check and sync initialization
     seedInitialData(db);
+    syncService.start();
 
     // Sync URL when browser back/forward buttons are pressed
     const handlePopState = () => {
@@ -86,10 +88,68 @@ export const App: React.FC = () => {
     };
     window.addEventListener('popstate', handlePopState);
 
-    // Audio chime on real-time call arrival
-    const unsubscribeRealtime = realtimeService.subscribe((event) => {
-      if (event.type === 'CALL_CREATED') {
-        playServiceChime();
+    // Audio chime & Dexie synchronization on real-time event arrival
+    const unsubscribeRealtime = realtimeService.subscribe(async (event) => {
+      try {
+        if (event.type === 'CALL_CREATED') {
+          const call = (event.payload as any)?.call || event.payload;
+          if (call && call.id) {
+            await db.waiter_calls.put(call);
+            playServiceChime();
+          }
+        } else if (event.type === 'CALL_ATTENDING') {
+          const { callId, attendingAt } = (event.payload as any) || {};
+          if (callId) {
+            await db.waiter_calls.update(callId, {
+              status: 'attending',
+              attendingAt: attendingAt || Date.now(),
+            });
+          }
+        } else if (event.type === 'CALL_RESOLVED') {
+          const { callId, resolvedAt } = (event.payload as any) || {};
+          if (callId) {
+            await db.waiter_calls.update(callId, {
+              status: 'resolved',
+              resolvedAt: resolvedAt || Date.now(),
+            });
+          }
+        } else if (event.type === 'CALL_CANCELLED') {
+          const { callId } = (event.payload as any) || {};
+          if (callId) {
+            await db.waiter_calls.update(callId, {
+              status: 'cancelled',
+            });
+          }
+        } else if (event.type === 'SESSION_STARTED') {
+          const session = (event.payload as any)?.session || event.payload;
+          if (session && session.id) {
+            await db.table_sessions.put(session);
+          }
+        } else if (event.type === 'SESSION_CLOSED') {
+          const { tableId } = (event.payload as any) || {};
+          if (tableId) {
+            await db.table_sessions
+              .where({ tableId, status: 'active' })
+              .modify({ status: 'closed', closedAt: Date.now() });
+          }
+        } else if (event.type === 'TABLE_UPDATED') {
+          const table = (event.payload as any)?.table || event.payload;
+          if (table && table.id) {
+            await db.restaurantTables.put(table);
+          }
+        } else if (event.type === 'TABLE_DELETED') {
+          const { id } = (event.payload as any) || {};
+          if (id) {
+            await db.restaurantTables.delete(id);
+          }
+        } else if (event.type === 'ZONE_CREATED' || event.type === 'ZONE_UPDATED') {
+          const zone = (event.payload as any)?.zone || event.payload;
+          if (zone && zone.id) {
+            await db.zones.put(zone);
+          }
+        }
+      } catch (err) {
+        console.error('Error syncing incoming realtime event:', err);
       }
     });
 
@@ -98,6 +158,7 @@ export const App: React.FC = () => {
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('popstate', handlePopState);
       unsubscribeRealtime();
+      syncService.stop();
     };
   }, []);
 
@@ -173,6 +234,7 @@ export const App: React.FC = () => {
       payload: { callId },
       timestamp: Date.now(),
     });
+    syncService.triggerSync();
   };
 
   const handleResolveCall = async (callId: string) => {
@@ -182,6 +244,7 @@ export const App: React.FC = () => {
       payload: { callId },
       timestamp: Date.now(),
     });
+    syncService.triggerSync();
   };
 
   // Customer Portal Navigation Handlers
@@ -223,17 +286,40 @@ export const App: React.FC = () => {
       status: 'available',
     });
 
+    realtimeService.publish({
+      type: 'TABLE_UPDATED',
+      payload: newTable,
+      timestamp: Date.now(),
+    });
+    syncService.triggerSync();
+
     setSelectedTableId(newTable.id);
   };
 
   const handleUpdateTable = async (tableId: string, changes: Partial<TableElement>) => {
     await updateTable(db, tableId, changes);
+    const updated = await db.restaurantTables.get(tableId);
+    if (updated) {
+      realtimeService.publish({
+        type: 'TABLE_UPDATED',
+        payload: updated,
+        timestamp: Date.now(),
+      });
+    }
+    syncService.triggerSync();
   };
 
   const handleDeleteSelected = async () => {
     if (!selectedTableId) return;
     if (confirm('¿Eliminar esta mesa del croquis?')) {
-      await deleteTable(db, selectedTableId);
+      const idToDelete = selectedTableId;
+      await deleteTable(db, idToDelete);
+      realtimeService.publish({
+        type: 'TABLE_DELETED',
+        payload: { id: idToDelete },
+        timestamp: Date.now(),
+      });
+      syncService.triggerSync();
       setSelectedTableId(null);
     }
   };
@@ -245,6 +331,12 @@ export const App: React.FC = () => {
       height: 1000,
       isDefault: false,
     });
+    realtimeService.publish({
+      type: 'ZONE_CREATED',
+      payload: newZone,
+      timestamp: Date.now(),
+    });
+    syncService.triggerSync();
     setActiveZoneId(newZone.id);
   };
 
@@ -263,6 +355,7 @@ export const App: React.FC = () => {
     } else {
       await createReservation(db, data);
     }
+    syncService.triggerSync();
   };
 
   const handleOpenReservationFormForTable = (tableId: string) => {
@@ -294,6 +387,16 @@ export const App: React.FC = () => {
         timestamp: Date.now(),
       });
     }
+
+    const updated = await db.restaurantTables.get(tableId);
+    if (updated) {
+      realtimeService.publish({
+        type: 'TABLE_UPDATED',
+        payload: updated,
+        timestamp: Date.now(),
+      });
+    }
+    syncService.triggerSync();
   };
 
   const handleSeatReservation = async (reservationId: string, tableId: string) => {
@@ -310,6 +413,16 @@ export const App: React.FC = () => {
         timestamp: Date.now(),
       });
     }
+
+    const updated = await db.restaurantTables.get(tableId);
+    if (updated) {
+      realtimeService.publish({
+        type: 'TABLE_UPDATED',
+        payload: updated,
+        timestamp: Date.now(),
+      });
+    }
+    syncService.triggerSync();
   };
 
   const handleCompleteReservation = async (reservationId: string, tableId?: string | null) => {
@@ -321,7 +434,17 @@ export const App: React.FC = () => {
         payload: { tableId },
         timestamp: Date.now(),
       });
+
+      const updated = await db.restaurantTables.get(tableId);
+      if (updated) {
+        realtimeService.publish({
+          type: 'TABLE_UPDATED',
+          payload: updated,
+          timestamp: Date.now(),
+        });
+      }
     }
+    syncService.triggerSync();
   };
 
   // If URL has ?mesa=:tableId or user triggered simulation, render the full mobile customer experience
@@ -422,6 +545,12 @@ export const App: React.FC = () => {
         onSave={handleUpdateTable}
         onDelete={async (id) => {
           await deleteTable(db, id);
+          realtimeService.publish({
+            type: 'TABLE_DELETED',
+            payload: { id },
+            timestamp: Date.now(),
+          });
+          syncService.triggerSync();
           setSelectedTableId(null);
         }}
       />
