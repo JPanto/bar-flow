@@ -12,7 +12,11 @@ export type SyncEntity =
   | 'reservation'
   | 'customer'
   | 'table_session'
-  | 'waiter_call';
+  | 'waiter_call'
+  | 'category'
+  | 'product'
+  | 'product_order'
+  | 'app_settings';
 
 export type SyncStatus = 'pending' | 'synced' | 'failed';
 
@@ -99,6 +103,60 @@ export interface SyncEvent {
   status: SyncStatus;
 }
 
+export interface ProductCategory {
+  id: string;
+  tenantId?: string;
+  name: string;
+  sortOrder: number;
+  createdAt: number;
+}
+
+export interface Product {
+  id: string;
+  tenantId?: string;
+  categoryId: string;
+  name: string;
+  description?: string;
+  price: number;
+  stock: number;
+  isActive: boolean;
+  totalOrders: number;
+  updatedAt: number;
+}
+
+export type OrderStatus = 'pending' | 'confirmed' | 'rejected' | 'delivered';
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  notes?: string;
+}
+
+export interface ProductOrder {
+  id: string;
+  tenantId?: string;
+  tableId: string;
+  sessionId: string;
+  tableName: string;
+  sessionWord: string;
+  status: OrderStatus;
+  totalAmount: number;
+  createdAt: number;
+  confirmedAt?: number | null;
+  items?: OrderItem[];
+}
+
+export interface AppSettings {
+  key: string;
+  tenantId?: string;
+  value: any;
+  updatedAt?: number;
+}
+
 export interface DatabaseBackup {
   version: number;
   exportedAt: number;
@@ -109,6 +167,12 @@ export interface DatabaseBackup {
     customers: Customer[];
     tableSessions?: TableSession[];
     waiterCalls?: WaiterCall[];
+    productCategories?: ProductCategory[];
+    products?: Product[];
+    productOrders?: ProductOrder[];
+    orderItems?: OrderItem[];
+    appSettings?: AppSettings[];
     syncQueue: SyncEvent[];
   };
 }
+

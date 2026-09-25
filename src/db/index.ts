@@ -6,13 +6,15 @@ import {
   Customer,
   TableSession,
   WaiterCall,
-  CallReason,
-  CallStatus,
   SyncEvent,
   SyncEntity,
   SyncAction,
   TableStatus,
-  ReservationStatus,
+  ProductCategory,
+  Product,
+  ProductOrder,
+  OrderItem,
+  AppSettings,
 } from '../types/database';
 
 export class BarMvpDB extends Dexie {
@@ -23,6 +25,11 @@ export class BarMvpDB extends Dexie {
   table_sessions!: Table<TableSession, string>;
   waiter_calls!: Table<WaiterCall, string>;
   sync_queue!: Table<SyncEvent, number>;
+  product_categories!: Table<ProductCategory, string>;
+  products!: Table<Product, string>;
+  product_orders!: Table<ProductOrder, string>;
+  order_items!: Table<OrderItem, string>;
+  app_settings!: Table<AppSettings, string>;
 
   constructor(dbName = 'BarRestoFlowDB') {
     super(dbName);
@@ -43,6 +50,21 @@ export class BarMvpDB extends Dexie {
       table_sessions: 'id, tableId, sessionWord, status, [tableId+status], openedAt, closedAt',
       waiter_calls: 'id, tableId, sessionId, reason, status, createdAt',
       sync_queue: '++id, entity, action, entityId, status, createdAt',
+    });
+
+    this.version(3).stores({
+      zones: 'id, name, isDefault, createdAt',
+      restaurantTables: 'id, zoneId, name, shape, status, seats, updatedAt',
+      reservations: 'id, tableId, date, time, status, customerName, createdAt',
+      customers: 'id, name, phone, email, createdAt',
+      table_sessions: 'id, tableId, sessionWord, status, [tableId+status], openedAt, closedAt',
+      waiter_calls: 'id, tableId, sessionId, reason, status, createdAt',
+      sync_queue: '++id, entity, action, entityId, status, createdAt',
+      product_categories: 'id, tenantId, sortOrder',
+      products: 'id, tenantId, categoryId, isActive, totalOrders',
+      product_orders: 'id, tenantId, tableId, sessionId, status, createdAt',
+      order_items: 'id, orderId, productId',
+      app_settings: 'key, tenantId',
     });
   }
 }
@@ -178,255 +200,7 @@ export async function deleteTable(
   });
 }
 
-// Table Session operations
-export async function startTableSession(
-  database: BarMvpDB,
-  tableId: string,
-  sessionWord: string
-): Promise<TableSession> {
-  const session: TableSession = {
-    id: crypto.randomUUID(),
-    tableId,
-    sessionWord,
-    status: 'active',
-    openedAt: Date.now(),
-    closedAt: null,
-  };
-
-  await database.transaction(
-    'rw',
-    database.table_sessions,
-    database.sync_queue,
-    async () => {
-      // Close any previous active session for this table
-      const previousActive = await database.table_sessions
-        .where({ tableId, status: 'active' })
-        .toArray();
-
-      for (const prev of previousActive) {
-        await database.table_sessions.update(prev.id, {
-          status: 'closed',
-          closedAt: Date.now(),
-        });
-        await logSyncEvent(database, 'table_session', 'UPDATE', prev.id, {
-          status: 'closed',
-          closedAt: Date.now(),
-        });
-      }
-
-      await database.table_sessions.add(session);
-      await logSyncEvent(database, 'table_session', 'INSERT', session.id, session);
-    }
-  );
-
-  return session;
-}
-
-export async function getActiveSessionForTable(
-  database: BarMvpDB,
-  tableId: string
-): Promise<TableSession | undefined> {
-  return await database.table_sessions
-    .where({ tableId, status: 'active' })
-    .first();
-}
-
-export async function closeTableSession(
-  database: BarMvpDB,
-  tableId: string
-): Promise<void> {
-  await database.transaction(
-    'rw',
-    database.table_sessions,
-    database.sync_queue,
-    async () => {
-      const activeSessions = await database.table_sessions
-        .where({ tableId, status: 'active' })
-        .toArray();
-
-      for (const session of activeSessions) {
-        const changes = { status: 'closed' as const, closedAt: Date.now() };
-        await database.table_sessions.update(session.id, changes);
-        await logSyncEvent(database, 'table_session', 'UPDATE', session.id, changes);
-      }
-    }
-  );
-}
-
-// Waiter Call operations
-export async function createWaiterCall(
-  database: BarMvpDB,
-  data: {
-    tableId: string;
-    sessionId: string;
-    tableName: string;
-    sessionWord: string;
-    reason: CallReason;
-  }
-): Promise<WaiterCall> {
-  const call: WaiterCall = {
-    id: crypto.randomUUID(),
-    tableId: data.tableId,
-    sessionId: data.sessionId,
-    tableName: data.tableName,
-    sessionWord: data.sessionWord,
-    reason: data.reason,
-    status: 'pending',
-    createdAt: Date.now(),
-    attendingAt: null,
-    resolvedAt: null,
-  };
-
-  await database.transaction(
-    'rw',
-    database.waiter_calls,
-    database.sync_queue,
-    async () => {
-      await database.waiter_calls.add(call);
-      await logSyncEvent(database, 'waiter_call', 'INSERT', call.id, call);
-    }
-  );
-
-  return call;
-}
-
-export async function attendingWaiterCall(
-  database: BarMvpDB,
-  callId: string
-): Promise<void> {
-  await database.transaction(
-    'rw',
-    database.waiter_calls,
-    database.sync_queue,
-    async () => {
-      const changes = {
-        status: 'attending' as CallStatus,
-        attendingAt: Date.now(),
-      };
-      await database.waiter_calls.update(callId, changes);
-      await logSyncEvent(database, 'waiter_call', 'UPDATE', callId, changes);
-    }
-  );
-}
-
-export async function resolveWaiterCall(
-  database: BarMvpDB,
-  callId: string
-): Promise<void> {
-  await database.transaction(
-    'rw',
-    database.waiter_calls,
-    database.sync_queue,
-    async () => {
-      const changes = {
-        status: 'resolved' as CallStatus,
-        resolvedAt: Date.now(),
-      };
-      await database.waiter_calls.update(callId, changes);
-      await logSyncEvent(database, 'waiter_call', 'UPDATE', callId, changes);
-    }
-  );
-}
-
-export async function cancelWaiterCall(
-  database: BarMvpDB,
-  callId: string
-): Promise<void> {
-  await database.transaction(
-    'rw',
-    database.waiter_calls,
-    database.sync_queue,
-    async () => {
-      const changes = { status: 'cancelled' as CallStatus };
-      await database.waiter_calls.update(callId, changes);
-      await logSyncEvent(database, 'waiter_call', 'UPDATE', callId, changes);
-    }
-  );
-}
-
-// Reservation operations
-export async function createReservation(
-  database: BarMvpDB,
-  data: Omit<Reservation, 'id' | 'createdAt'> & { id?: string }
-): Promise<Reservation> {
-  const res: Reservation = {
-    id: data.id || crypto.randomUUID(),
-    tableId: data.tableId || null,
-    customerName: data.customerName,
-    customerPhone: data.customerPhone,
-    customerEmail: data.customerEmail,
-    date: data.date,
-    time: data.time,
-    pax: data.pax,
-    notes: data.notes,
-    status: data.status || 'confirmed',
-    createdAt: Date.now(),
-  };
-
-  await database.transaction('rw', database.reservations, database.sync_queue, async () => {
-    await database.reservations.add(res);
-    await logSyncEvent(database, 'reservation', 'INSERT', res.id, res);
-  });
-
-  return res;
-}
-
-export async function updateReservationStatus(
-  database: BarMvpDB,
-  reservationId: string,
-  status: ReservationStatus
-): Promise<void> {
-  await database.transaction('rw', database.reservations, database.sync_queue, async () => {
-    await database.reservations.update(reservationId, { status });
-    await logSyncEvent(database, 'reservation', 'UPDATE', reservationId, { status });
-  });
-}
-
-export async function seatReservation(
-  database: BarMvpDB,
-  reservationId: string,
-  tableId: string
-): Promise<void> {
-  await database.transaction('rw', database.reservations, database.restaurantTables, database.sync_queue, async () => {
-    await database.reservations.update(reservationId, { tableId, status: 'seated' });
-    await logSyncEvent(database, 'reservation', 'UPDATE', reservationId, { tableId, status: 'seated' });
-
-    const tableChanges = { status: 'occupied' as TableStatus, updatedAt: Date.now() };
-    await database.restaurantTables.update(tableId, tableChanges);
-    await logSyncEvent(database, 'table', 'UPDATE', tableId, tableChanges);
-  });
-}
-
-export async function completeReservation(
-  database: BarMvpDB,
-  reservationId: string,
-  tableId?: string | null
-): Promise<void> {
-  await database.transaction('rw', database.reservations, database.restaurantTables, database.sync_queue, async () => {
-    await database.reservations.update(reservationId, { status: 'completed' });
-    await logSyncEvent(database, 'reservation', 'UPDATE', reservationId, { status: 'completed' });
-
-    if (tableId) {
-      const tableChanges = { status: 'available' as TableStatus, updatedAt: Date.now() };
-      await database.restaurantTables.update(tableId, tableChanges);
-      await logSyncEvent(database, 'table', 'UPDATE', tableId, tableChanges);
-    }
-  });
-}
-
-export async function cancelReservation(
-  database: BarMvpDB,
-  reservationId: string,
-  tableId?: string | null
-): Promise<void> {
-  await database.transaction('rw', database.reservations, database.restaurantTables, database.sync_queue, async () => {
-    await database.reservations.update(reservationId, { status: 'cancelled' });
-    await logSyncEvent(database, 'reservation', 'UPDATE', reservationId, { status: 'cancelled' });
-
-    if (tableId) {
-      const tableChanges = { status: 'available' as TableStatus, updatedAt: Date.now() };
-      await database.restaurantTables.update(tableId, tableChanges);
-      await logSyncEvent(database, 'table', 'UPDATE', tableId, tableChanges);
-    }
-  });
-}
+// Re-export domain-specific operations
+export * from './waiterCalls';
+export * from './reservations';
+export * from './catalog';
