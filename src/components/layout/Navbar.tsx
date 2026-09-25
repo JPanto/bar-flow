@@ -8,11 +8,12 @@ import {
   Moon,
   Menu,
   User as UserIcon,
+  Package,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 
-export type AppTab = 'service' | 'editor' | 'reservations';
+export type AppTab = 'service' | 'editor' | 'reservations' | 'menu';
 
 interface NavbarProps {
   currentTab: AppTab;
@@ -79,6 +80,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <LayoutGrid className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Editor Croquis</span>
+          </button>
+        )}
+
+        {role === 'manager' && (
+          <button
+            onClick={() => onSelectTab('menu')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all active:scale-[0.96] touch-manipulation cursor-pointer ${
+              currentTab === 'menu'
+                ? 'bg-apple-purple text-white shadow-sm'
+                : 'text-apple-label-sec hover:text-apple-label'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Menú</span>
           </button>
         )}
 

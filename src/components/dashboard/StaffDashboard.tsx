@@ -9,6 +9,7 @@ import { EditorToolbar } from '../croquis/EditorToolbar';
 import { ServiceStatsBar } from '../service/ServiceStatsBar';
 import { UnifiedAttentionFeed } from '../service/UnifiedAttentionFeed';
 import { ReservationView } from '../reservations/ReservationView';
+import { MenuManagementTab } from '../menu/MenuManagementTab';
 import { StaffModals } from './StaffModals';
 import { useStaffModals } from '../../hooks/useStaffModals';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
@@ -29,13 +30,13 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
   const modals = useStaffModals();
 
   useEffect(() => {
-    if (role !== 'manager' && currentTab === 'editor') {
+    if (role !== 'manager' && (currentTab === 'editor' || currentTab === 'menu')) {
       setCurrentTab('service');
     }
   }, [role, currentTab]);
 
   const handleSelectTab = (tab: AppTab) => {
-    if (tab === 'editor' && role !== 'manager') {
+    if ((tab === 'editor' || tab === 'menu') && role !== 'manager') {
       setCurrentTab('service');
       return;
     }
@@ -127,7 +128,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
         onOpenMenu={() => modals.setIsMenuOpen(true)}
       />
 
-      {currentTab !== 'reservations' && (
+      {currentTab !== 'reservations' && currentTab !== 'menu' && (
         <ZoneTabs
           zones={zones}
           activeZoneId={activeZone.id}
@@ -164,6 +165,8 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
             onCompleteReservation={handleCompleteReservation}
             onCancelReservation={(rId, tId) => cancelReservation(db, rId, tId)}
           />
+        ) : currentTab === 'menu' ? (
+          <MenuManagementTab />
         ) : (
           <div className="relative flex-1 w-full h-full">
             {currentTab === 'editor' && (

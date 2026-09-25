@@ -204,3 +204,4 @@ export async function deleteTable(
 export * from './waiterCalls';
 export * from './reservations';
 export * from './catalog';
+export * from './catalogManagement';
