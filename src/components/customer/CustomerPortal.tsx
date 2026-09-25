@@ -1,17 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useCustomerSession } from '../../hooks/useCustomerSession';
-import { CallReason } from '../../types/database';
+import { useOrderManagement } from '../../hooks/useOrderManagement';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../../db';
+import { CustomerMenu } from './CustomerMenu';
+import { CustomerAssistanceView } from './CustomerAssistanceView';
+import { formatPrice } from './ProductCard';
 import {
-  BellRing,
-  Receipt,
-  HelpCircle,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  Copy,
-  Check,
   UtensilsCrossed,
-  ShieldCheck,
+  BellRing,
+  BookOpen,
+  Clock,
+  XCircle,
+  Loader2,
 } from 'lucide-react';
 
 interface CustomerPortalProps {
@@ -20,17 +21,38 @@ interface CustomerPortalProps {
 }
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitToStaff }) => {
+  const [activeTab, setActiveTab] = useState<'menu' | 'assistance'>('menu');
   const {
     table,
     activeSession,
     activeCall,
     urgency,
     copied,
-    isSubmitting,
+    isSubmitting: isSubmittingCall,
     handleCopyWord,
     handleCall,
     handleCancelCall,
   } = useCustomerSession(tableId);
+
+  const { cancelOrder, isProcessing: isCancellingOrder } = useOrderManagement();
+
+  // Reactive subscription for active pending orders on this table
+  const pendingOrders = useLiveQuery(
+    async () => {
+      const orders = await db.product_orders
+        .where('tableId')
+        .equals(tableId)
+        .toArray();
+      const pending = orders.filter((o) => o.status === 'pending');
+      return await Promise.all(
+        pending.map(async (order) => {
+          const items = await db.order_items.where('orderId').equals(order.id).toArray();
+          return { ...order, items };
+        })
+      );
+    },
+    [tableId]
+  );
 
   const handleExit = () => {
     if (onExitToStaff) {
@@ -60,20 +82,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
     );
   }
 
-  const getReasonTitle = (reason: CallReason) => {
-    switch (reason) {
-      case 'bill':
-        return 'Pedir la Cuenta';
-      case 'help':
-        return 'Asistencia';
-      default:
-        return 'Llamar al Mesero';
-    }
-  };
-
   return (
     <div className="min-h-[100dvh] w-full bg-apple-bg text-apple-label flex flex-col justify-between relative shadow-2xl overflow-x-hidden selection:bg-apple-green selection:text-black pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pl-[env(safe-area-inset-left,0px)] pr-[env(safe-area-inset-right,0px)] select-none">
-      {/* Top Header with Translucent Material */}
+      {/* Top Header */}
       <header className="px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between border-b border-apple-border bg-apple-card/80 backdrop-blur-xl sticky top-0 z-20 transition-colors">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-apple-green flex items-center justify-center text-white shadow-md shadow-apple-green/20">
@@ -98,167 +109,100 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
         </button>
       </header>
 
-      {/* Main Scrollable Content */}
-      <main className="flex-1 w-full max-w-lg mx-auto p-4 sm:p-6 flex flex-col justify-center gap-4 sm:gap-6 overflow-y-auto overscroll-y-contain">
-        {/* Dynamic Table Session Word Card */}
-        <div className="bg-apple-card/85 backdrop-blur-xl border border-apple-border rounded-3xl p-5 sm:p-6 shadow-lg text-center space-y-3 relative overflow-hidden transition-all">
-          <div className="absolute top-0 right-0 transform translate-x-4 -translate-y-4 w-28 h-28 bg-apple-green/10 rounded-full blur-2xl pointer-events-none" />
-
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-apple-green/10 text-apple-green text-xs font-semibold border border-apple-green/20">
-            <ShieldCheck className="w-3.5 h-3.5" /> Tu Código de Mesa
-          </span>
-
-          <div className="py-0.5">
-            <div className="text-3xl sm:text-4xl font-black tracking-wider font-mono text-apple-label">
-              {activeSession ? activeSession.sessionWord : 'EN PREPARACIÓN'}
-            </div>
-          </div>
-
-          <p className="text-xs text-apple-label-sec max-w-xs mx-auto leading-relaxed">
-            Indica esta palabra en la caja para pagar directamente tu cuenta o solicitar consumos.
-          </p>
-
-          {activeSession && (
-            <button
-              onClick={handleCopyWord}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-apple-fill text-apple-label hover:bg-apple-fill/80 rounded-xl text-xs font-semibold transition-all active:scale-[0.97] border border-apple-border touch-manipulation cursor-pointer"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-apple-green" /> : <Copy className="w-3.5 h-3.5" />}
-              <span>{copied ? '¡Copiado!' : 'Copiar Código'}</span>
-            </button>
-          )}
-        </div>
-
-        {/* Live Call Status Card */}
-        {activeCall && urgency ? (
-          <div
-            className={`border rounded-3xl p-5 sm:p-6 shadow-xl space-y-4 transition-all duration-300 ${
-              urgency.isCritical ? 'animate-pulse' : ''
+      {/* Navigation Tabs (Menú & Pedidos / Asistencia & Cuenta) */}
+      <div className="w-full max-w-lg mx-auto px-4 pt-3">
+        <div className="grid grid-cols-2 p-1 bg-apple-fill/70 rounded-2xl border border-apple-border">
+          <button
+            onClick={() => setActiveTab('menu')}
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'menu'
+                ? 'bg-apple-card text-apple-label shadow-sm'
+                : 'text-apple-label-sec hover:text-apple-label'
             }`}
-            style={{
-              backgroundColor: urgency.hslBgColor,
-              borderColor: urgency.hslColor,
-            }}
           >
-            <div className="flex items-center justify-between">
-              <span
-                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-black shadow-sm"
-                style={{ backgroundColor: urgency.hslColor }}
-              >
-                {activeCall.status === 'attending' ? 'Mesero en camino' : 'Llamado Activo'}
-              </span>
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Menú & Pedidos</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('assistance')}
+            className={`flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer relative ${
+              activeTab === 'assistance'
+                ? 'bg-apple-card text-apple-label shadow-sm'
+                : 'text-apple-label-sec hover:text-apple-label'
+            }`}
+          >
+            <BellRing className="w-3.5 h-3.5" />
+            <span>Asistencia & Cuenta</span>
+            {activeCall && (
+              <span className="w-2 h-2 rounded-full bg-apple-orange animate-ping absolute top-2 right-3" />
+            )}
+          </button>
+        </div>
+      </div>
 
-              <div className="flex items-center gap-1.5 text-xs font-bold text-apple-label">
-                <Clock className="w-3.5 h-3.5" />
-                <span>{urgency.formattedTime}</span>
-              </div>
-            </div>
+      {/* Main Content */}
+      <main className="flex-1 w-full max-w-lg mx-auto p-4 sm:p-6 flex flex-col gap-4 overflow-y-auto overscroll-y-contain">
+        {/* Active Pending Orders Banner */}
+        {pendingOrders && pendingOrders.length > 0 && (
+          <div className="space-y-2">
+            {pendingOrders.map((order) => {
+              const itemCount = order.items?.reduce((s, it) => s + it.quantity, 0) || 0;
+              return (
+                <div
+                  key={order.id}
+                  className="bg-apple-orange/10 border border-apple-orange/30 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm animate-in fade-in"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-apple-orange/20 text-apple-orange flex items-center justify-center shrink-0">
+                      <Clock className="w-5 h-5 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-apple-label">
+                        Pedido pendiente de confirmación
+                      </h4>
+                      <p className="text-[11px] text-apple-label-sec font-mono mt-0.5">
+                        {itemCount} {itemCount === 1 ? 'ítem' : 'ítems'} • {formatPrice(order.totalAmount)}
+                      </p>
+                    </div>
+                  </div>
 
-            <div>
-              <h3 className="text-base font-bold text-apple-label flex items-center gap-2">
-                {activeCall.status === 'attending' ? (
-                  <CheckCircle2 className="w-5 h-5 text-apple-green shrink-0" />
-                ) : (
-                  <BellRing className="w-5 h-5 animate-bounce shrink-0" style={{ color: urgency.hslColor }} />
-                )}
-                <span>
-                  {activeCall.status === 'attending'
-                    ? '¡Tu mesero viene hacia la mesa!'
-                    : `Solicitud: ${getReasonTitle(activeCall.reason)}`}
-                </span>
-              </h3>
-              <p className="text-xs text-apple-label-sec mt-1">
-                {activeCall.status === 'attending'
-                  ? 'El personal ha respondido a tu solicitud y se dirige a tu ubicación.'
-                  : 'Tu llamado encabeza la cola de atención por orden de llegada.'}
-              </p>
-            </div>
-
-            {/* Dynamic Chromatic Progress Indicator */}
-            <div className="w-full bg-apple-fill/50 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full transition-all duration-500 rounded-full"
-                style={{
-                  width: `${Math.min(100, Math.max(15, (urgency.secondsElapsed / 240) * 100))}%`,
-                  backgroundColor: urgency.hslColor,
-                }}
-              />
-            </div>
-
-            <button
-              onClick={handleCancelCall}
-              className="w-full flex items-center justify-center gap-1.5 py-2.5 px-4 bg-apple-card/90 text-apple-red hover:bg-apple-red/10 text-xs font-semibold rounded-2xl border border-apple-red/30 transition-all active:scale-[0.97] touch-manipulation cursor-pointer"
-            >
-              <XCircle className="w-4 h-4 text-apple-red" />
-              Cancelar llamado
-            </button>
+                  <button
+                    onClick={() => cancelOrder(order.id, 'Cancelado por el cliente')}
+                    disabled={isCancellingOrder}
+                    className="px-2.5 py-1.5 rounded-xl bg-apple-card border border-apple-red/30 text-apple-red hover:bg-apple-red/10 text-xs font-semibold flex items-center gap-1 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isCancellingOrder ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <XCircle className="w-3 h-3" />
+                    )}
+                    <span>Cancelar</span>
+                  </button>
+                </div>
+              );
+            })}
           </div>
+        )}
+
+        {/* Tab Content */}
+        {activeTab === 'menu' ? (
+          <CustomerMenu
+            tableId={tableId}
+            sessionId={activeSession?.id}
+            tableName={table.name}
+            sessionWord={activeSession?.sessionWord}
+          />
         ) : (
-          /* Call Action Buttons Grid - Adapts gracefully to Landscape & Portrait */
-          <div className="space-y-3">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-apple-label-sec text-center">
-              ¿En qué podemos atenderte hoy?
-            </h2>
-
-            <div className="grid grid-cols-1 landscape:grid-cols-3 sm:grid-cols-3 gap-3">
-              <button
-                onClick={() => handleCall('waiter')}
-                disabled={isSubmitting}
-                className="w-full flex sm:flex-col landscape:flex-col items-center justify-between sm:justify-center landscape:justify-center p-4 bg-apple-card/80 hover:bg-apple-fill/50 active:scale-[0.97] border border-apple-border hover:border-apple-green/50 rounded-2xl shadow-sm transition-transform duration-100 ease-out text-left sm:text-center landscape:text-center group touch-manipulation cursor-pointer"
-              >
-                <div className="flex sm:flex-col landscape:flex-col items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-apple-green/15 text-apple-green flex items-center justify-center group-hover:scale-105 transition-transform duration-150">
-                    <BellRing className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-apple-label text-sm">Mesero</h3>
-                    <p className="text-[11px] text-apple-label-sec sm:hidden landscape:hidden">Atención en mesa</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-semibold text-apple-green bg-apple-green/10 px-2.5 py-1 rounded-xl sm:mt-2 landscape:mt-2">
-                  Llamar
-                </span>
-              </button>
-
-              <button
-                onClick={() => handleCall('bill')}
-                disabled={isSubmitting}
-                className="w-full flex sm:flex-col landscape:flex-col items-center justify-between sm:justify-center landscape:justify-center p-4 bg-apple-card/80 hover:bg-apple-fill/50 active:scale-[0.97] border border-apple-border hover:border-apple-orange/50 rounded-2xl shadow-sm transition-transform duration-100 ease-out text-left sm:text-center landscape:text-center group touch-manipulation cursor-pointer"
-              >
-                <div className="flex sm:flex-col landscape:flex-col items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-apple-orange/15 text-apple-orange flex items-center justify-center group-hover:scale-105 transition-transform duration-150">
-                    <Receipt className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-apple-label text-sm">La Cuenta</h3>
-                    <p className="text-[11px] text-apple-label-sec sm:hidden landscape:hidden">Tarjeta o efectivo</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-semibold text-apple-orange bg-apple-orange/10 px-2.5 py-1 rounded-xl sm:mt-2 landscape:mt-2">
-                  Pedir
-                </span>
-              </button>
-
-              <button
-                onClick={() => handleCall('help')}
-                disabled={isSubmitting}
-                className="w-full flex sm:flex-col landscape:flex-col items-center justify-between sm:justify-center landscape:justify-center p-4 bg-apple-card/80 hover:bg-apple-fill/50 active:scale-[0.97] border border-apple-border hover:border-apple-blue/50 rounded-2xl shadow-sm transition-transform duration-100 ease-out text-left sm:text-center landscape:text-center group touch-manipulation cursor-pointer"
-              >
-                <div className="flex sm:flex-col landscape:flex-col items-center gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-apple-blue/15 text-apple-blue flex items-center justify-center group-hover:scale-105 transition-transform duration-150">
-                    <HelpCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-apple-label text-sm">Asistencia</h3>
-                    <p className="text-[11px] text-apple-label-sec sm:hidden landscape:hidden">Menú y cubiertos</p>
-                  </div>
-                </div>
-                <span className="text-[11px] font-semibold text-apple-blue bg-apple-blue/10 px-2.5 py-1 rounded-xl sm:mt-2 landscape:mt-2">
-                  Ayuda
-                </span>
-              </button>
-            </div>
-          </div>
+          <CustomerAssistanceView
+            activeSession={activeSession}
+            activeCall={activeCall}
+            urgency={urgency}
+            copied={copied}
+            isSubmitting={isSubmittingCall}
+            handleCopyWord={handleCopyWord}
+            handleCall={handleCall}
+            handleCancelCall={handleCancelCall}
+          />
         )}
       </main>
 
