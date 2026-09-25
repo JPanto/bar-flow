@@ -124,7 +124,7 @@ export interface Product {
   updatedAt: number;
 }
 
-export type OrderStatus = 'pending' | 'confirmed' | 'rejected' | 'delivered';
+export type OrderStatus = 'pending' | 'confirmed' | 'rejected' | 'cancelled' | 'delivered';
 
 export interface OrderItem {
   id: string;
@@ -149,6 +149,46 @@ export interface ProductOrder {
   confirmedAt?: number | null;
   items?: OrderItem[];
 }
+
+export interface BaseAttentionItem {
+  id: string;
+  tableId: string;
+  tableName: string;
+  sessionId: string;
+  sessionWord: string;
+  createdAt: number;
+  urgency: {
+    secondsElapsed: number;
+    hue: number;
+    hslColor: string;
+    hslBgColor: string;
+    hexColor: string;
+    formattedTime: string;
+    urgencyLabel: 'Reciente' | 'En espera' | 'Urgente' | 'Crítico';
+    isCritical: boolean;
+    color: string;
+    isUrgent: boolean;
+    elapsedMs: number;
+  };
+}
+
+export interface CallAttentionItem extends BaseAttentionItem {
+  type: 'call';
+  reason: CallReason;
+  status: CallStatus;
+  call?: WaiterCall;
+}
+
+export interface OrderAttentionItem extends BaseAttentionItem {
+  type: 'order';
+  itemSummary: string;
+  totalAmount: number;
+  status: OrderStatus;
+  order?: ProductOrder;
+  items?: OrderItem[];
+}
+
+export type AttentionItem = CallAttentionItem | OrderAttentionItem;
 
 export interface AppSettings {
   key: string;

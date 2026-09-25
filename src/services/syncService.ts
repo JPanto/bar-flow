@@ -7,14 +7,15 @@ export class SyncService {
   private isSyncing = false;
 
   constructor() {
-    this.apiUrl =
+    const rawUrl =
       typeof import.meta !== 'undefined'
         ? (import.meta as any).env?.VITE_API_URL
         : undefined;
+    this.apiUrl = rawUrl ? rawUrl.replace(/\/+$/, '') : undefined;
   }
 
   public setApiUrl(url: string) {
-    this.apiUrl = url;
+    this.apiUrl = url ? url.replace(/\/+$/, '') : undefined;
   }
 
   public getApiUrl(): string | undefined {

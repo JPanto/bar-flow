@@ -206,28 +206,42 @@ export async function confirmProductOrder(
         .equals(orderId)
         .toArray();
 
+      // Accumulate quantities by productId in case of duplicate order lines
+      const productQuantities = new Map<string, { quantity: number; productName: string }>();
       for (const item of items) {
-        const prod = await database.products.get(item.productId);
-        if (!prod || prod.stock < item.quantity) {
+        const existing = productQuantities.get(item.productId);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          productQuantities.set(item.productId, {
+            quantity: item.quantity,
+            productName: item.productName || item.productId,
+          });
+        }
+      }
+
+      for (const [productId, { quantity, productName }] of productQuantities.entries()) {
+        const prod = await database.products.get(productId);
+        if (!prod || prod.stock < quantity) {
           return {
             success: false,
-            reason: `insufficient_stock_for_${item.productName || item.productId}`,
+            reason: `insufficient_stock_for_${productName}`,
           };
         }
       }
 
-      for (const item of items) {
-        const prod = (await database.products.get(item.productId))!;
-        const newStock = Math.max(0, prod.stock - item.quantity);
-        const newTotalOrders = (prod.totalOrders || 0) + item.quantity;
+      for (const [productId, { quantity }] of productQuantities.entries()) {
+        const prod = (await database.products.get(productId))!;
+        const newStock = Math.max(0, prod.stock - quantity);
+        const newTotalOrders = (prod.totalOrders || 0) + quantity;
         const prodChanges = {
           stock: newStock,
           totalOrders: newTotalOrders,
           updatedAt: Date.now(),
         };
-        await database.products.update(item.productId, prodChanges);
-        await logSyncEvent(database, 'product', 'UPDATE', item.productId, {
-          id: item.productId,
+        await database.products.update(productId, prodChanges);
+        await logSyncEvent(database, 'product', 'UPDATE', productId, {
+          id: productId,
           ...prodChanges,
         });
       }
@@ -241,6 +255,38 @@ export async function confirmProductOrder(
       await logSyncEvent(database, 'product_order', 'UPDATE', orderId, {
         id: orderId,
         ...orderChanges,
+      });
+
+      return { success: true };
+    }
+  );
+}
+
+export async function updateProductOrderStatus(
+  database: BarMvpDB,
+  orderId: string,
+  newStatus: OrderStatus,
+  reason?: string
+): Promise<{ success: boolean; reason?: string }> {
+  return await database.transaction(
+    'rw',
+    database.product_orders,
+    database.sync_queue,
+    async () => {
+      const order = await database.product_orders.get(orderId);
+      if (!order) {
+        return { success: false, reason: 'order_not_found' };
+      }
+      if (order.status !== 'pending') {
+        return { success: false, reason: `order_already_${order.status}` };
+      }
+
+      const changes = { status: newStatus };
+      await database.product_orders.update(orderId, changes);
+      await logSyncEvent(database, 'product_order', 'UPDATE', orderId, {
+        id: orderId,
+        ...changes,
+        reason,
       });
 
       return { success: true };

@@ -8,7 +8,11 @@ export type RealtimeEventType =
   | 'TABLE_UPDATED'
   | 'TABLE_DELETED'
   | 'ZONE_CREATED'
-  | 'ZONE_UPDATED';
+  | 'ZONE_UPDATED'
+  | 'ORDER_CREATED'
+  | 'ORDER_CONFIRMED'
+  | 'ORDER_REJECTED'
+  | 'STOCK_UPDATED';
 
 export interface RealtimeEvent<T = any> {
   type: RealtimeEventType;
