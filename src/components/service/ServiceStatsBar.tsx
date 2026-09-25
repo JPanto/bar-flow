@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TableElement } from '../../types/database';
-import { Users, Utensils } from 'lucide-react';
+import { Users, Utensils, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ServiceStatsBarProps {
   tables: TableElement[];
 }
 
 export const ServiceStatsBar: React.FC<ServiceStatsBarProps> = ({ tables }) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   const total = tables.length;
   const available = tables.filter((t) => t.status === 'available').length;
   const occupied = tables.filter((t) => t.status === 'occupied').length;
@@ -20,59 +22,75 @@ export const ServiceStatsBar: React.FC<ServiceStatsBarProps> = ({ tables }) => {
   const occupancyRate = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-2.5 bg-slate-900 border-b border-slate-800 text-xs">
-      {/* Status Counters */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
-          <Utensils className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-400">Total Mesas:</span>
-          <span className="font-bold text-white">{total}</span>
-        </div>
+    <div className="w-full bg-apple-card/85 backdrop-blur-xl border-b border-apple-border text-apple-label select-none transition-colors">
+      <div className="flex items-center justify-between px-3 py-1.5 sm:px-5">
+        {/* Adaptive Status & Occupancy Chips (No horizontal scroll, wraps gracefully) */}
+        {!isCollapsed ? (
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-3 flex-1 min-w-0 pr-2">
+            {/* Total Mesas Chip */}
+            <div className="flex items-center gap-1.5 bg-apple-fill px-2.5 py-1 rounded-xl text-xs">
+              <Utensils className="w-3.5 h-3.5 text-apple-label-sec shrink-0" />
+              <span className="text-apple-label-sec hidden xs:inline">Mesas:</span>
+              <span className="font-bold text-apple-label">{total}</span>
+            </div>
 
-        <div className="h-3 w-px bg-slate-800" />
+            {/* Libres */}
+            <div className="flex items-center gap-1.5 bg-apple-fill px-2.5 py-1 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-apple-green animate-pulse shrink-0" />
+              <span className="text-apple-label-sec hidden xs:inline">Libres:</span>
+              <span className="font-bold text-apple-green">{available}</span>
+            </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-slate-400">Libres:</span>
-          <span className="font-bold text-emerald-400">{available}</span>
-        </div>
+            {/* Ocupadas */}
+            <div className="flex items-center gap-1.5 bg-apple-fill px-2.5 py-1 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-apple-red shrink-0" />
+              <span className="text-apple-label-sec hidden xs:inline">Ocupadas:</span>
+              <span className="font-bold text-apple-red">{occupied}</span>
+            </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-          <span className="text-slate-400">Ocupadas:</span>
-          <span className="font-bold text-rose-400">{occupied}</span>
-        </div>
+            {/* Reservadas */}
+            <div className="flex items-center gap-1.5 bg-apple-fill px-2.5 py-1 rounded-xl text-xs">
+              <span className="w-2 h-2 rounded-full bg-apple-orange shrink-0" />
+              <span className="text-apple-label-sec hidden xs:inline">Reservadas:</span>
+              <span className="font-bold text-apple-orange">{reserved}</span>
+            </div>
 
-        <div className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-          <span className="text-slate-400">Reservadas:</span>
-          <span className="font-bold text-amber-400">{reserved}</span>
-        </div>
-      </div>
-
-      {/* Guest capacity and occupancy % */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1.5">
-          <Users className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-slate-400">Comensales:</span>
-          <span className="font-bold text-white">
-            {occupiedSeats} / {totalSeats}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                occupancyRate > 80 ? 'bg-rose-500' : occupancyRate > 50 ? 'bg-amber-500' : 'bg-emerald-500'
-              }`}
-              style={{ width: `${occupancyRate}%` }}
-            />
+            {/* Comensales y Ocupación */}
+            <div className="flex items-center gap-2 bg-apple-fill px-2.5 py-1 rounded-xl text-xs ml-auto sm:ml-0">
+              <Users className="w-3.5 h-3.5 text-apple-label-sec shrink-0" />
+              <span className="font-bold text-apple-label whitespace-nowrap">
+                {occupiedSeats}/{totalSeats}p
+              </span>
+              <div className="w-14 sm:w-20 h-1.5 bg-apple-border rounded-full overflow-hidden shrink-0 hidden xs:block">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${occupancyRate}%`,
+                    backgroundColor:
+                      occupancyRate > 80 ? 'var(--apple-red)' : occupancyRate > 50 ? 'var(--apple-orange)' : 'var(--apple-green)',
+                  }}
+                />
+              </div>
+              <span className="font-bold text-apple-label-sec text-[10px]">{occupancyRate}%</span>
+            </div>
           </div>
-          <span className="font-semibold text-slate-300 min-w-8 text-right">
-            {occupancyRate}%
-          </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2 text-xs text-apple-label-sec py-0.5">
+            <span className="font-medium">Métricas de servicio ocultas</span>
+            <span className="text-[10px] bg-apple-fill px-2 py-0.5 rounded-lg text-apple-label">
+              {occupied}/{total} mesas • {occupancyRate}%
+            </span>
+          </div>
+        )}
+
+        {/* Collapse / Expand Toggle Button */}
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="p-1 text-apple-label-sec hover:text-apple-label hover:bg-apple-fill rounded-lg transition-all active:scale-[0.96] touch-manipulation cursor-pointer shrink-0 ml-1"
+          title={isCollapsed ? 'Mostrar barra de métricas' : 'Ocultar barra de métricas'}
+        >
+          {isCollapsed ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </button>
       </div>
     </div>
   );

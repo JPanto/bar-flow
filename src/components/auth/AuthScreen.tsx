@@ -83,31 +83,31 @@ export const AuthScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen w-screen bg-slate-950 flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden select-none">
+    <div className="min-h-screen w-screen bg-apple-bg flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden select-none transition-colors">
       {/* Ambient background glows */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-apple-blue/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/3 w-80 h-80 bg-apple-indigo/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Main Container */}
-      <div className="relative z-10 w-full max-w-md bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/60">
+      <div className="relative z-10 w-full max-w-md bg-apple-card/85 backdrop-blur-xl border border-apple-border rounded-3xl p-6 sm:p-8 shadow-2xl transition-colors">
         {/* Brand header */}
         <div className="flex flex-col items-center text-center mb-6">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-white shadow-xl shadow-emerald-950/80 mb-3">
             <UtensilsCrossed className="w-6 h-6" />
           </div>
-          <h1 className="text-xl font-black text-white tracking-wide uppercase flex items-center gap-2">
+          <h1 className="text-xl font-black text-apple-label tracking-wide uppercase flex items-center gap-2">
             BarFlow{' '}
-            <span className="text-[11px] font-normal lowercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <span className="text-[11px] font-normal lowercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border border-emerald-500/20">
               mvp
             </span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Gestión de Mesas y Operación en Tiempo Real</p>
+          <p className="text-xs text-apple-secondary mt-1">Gestión de Mesas y Operación en Tiempo Real</p>
         </div>
 
         {/* Supabase Not Configured Warning */}
         {!isSupabaseConfigured && (
-          <div className="mb-5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+          <div className="mb-5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 dark:text-amber-400 text-xs flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-amber-500 dark:text-amber-400 mt-0.5" />
             <div>
               <span className="font-semibold block">Supabase no configurado</span>
               Credenciales remotas no detectadas en .env. Puedes usar el{' '}
@@ -117,7 +117,7 @@ export const AuthScreen: React.FC = () => {
         )}
 
         {/* Tab Switcher */}
-        <div className="flex p-1 mb-6 bg-slate-950 rounded-2xl border border-slate-800">
+        <div className="flex p-1 mb-6 bg-apple-fill rounded-2xl border border-apple-border">
           <button
             type="button"
             onClick={() => {
@@ -127,8 +127,8 @@ export const AuthScreen: React.FC = () => {
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'login'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-apple-blue text-white shadow-xs'
+                : 'text-apple-secondary hover:text-apple-label'
             }`}
           >
             <LogIn className="w-3.5 h-3.5" />
@@ -143,8 +143,8 @@ export const AuthScreen: React.FC = () => {
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'signup'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-apple-blue text-white shadow-xs'
+                : 'text-apple-secondary hover:text-apple-label'
             }`}
           >
             <Building2 className="w-3.5 h-3.5" />
@@ -154,16 +154,16 @@ export const AuthScreen: React.FC = () => {
 
         {/* Info message (e.g. Email confirmation required) */}
         {infoMessage && (
-          <div className="mb-4 p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+          <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500 dark:text-emerald-400" />
             <span>{infoMessage}</span>
           </div>
         )}
 
         {/* Error message */}
         {errorMessage && (
-          <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-500 dark:text-rose-400" />
             <span>{errorMessage}</span>
           </div>
         )}
@@ -172,7 +172,7 @@ export const AuthScreen: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           {activeTab === 'signup' && (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+              <label className="block text-xs font-semibold text-apple-secondary mb-1.5">
                 Nombre del Bar / Restaurante
               </label>
               <input
@@ -181,13 +181,13 @@ export const AuthScreen: React.FC = () => {
                 value={establishmentName}
                 onChange={(e) => setEstablishmentName(e.target.value)}
                 placeholder="Ej. Terraza Bar Central"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+                className="w-full bg-apple-fill border border-apple-border rounded-xl px-3.5 py-2.5 text-xs text-apple-label placeholder:text-apple-secondary/60 focus:outline-none focus:border-apple-blue transition-all"
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-apple-secondary mb-1.5">
               Correo Electrónico
             </label>
             <input
@@ -196,12 +196,12 @@ export const AuthScreen: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="tu@correo.com"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="w-full bg-apple-fill border border-apple-border rounded-xl px-3.5 py-2.5 text-xs text-apple-label placeholder:text-apple-secondary/60 focus:outline-none focus:border-apple-blue transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-apple-secondary mb-1.5">
               Contraseña
             </label>
             <input
@@ -211,14 +211,14 @@ export const AuthScreen: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              className="w-full bg-apple-fill border border-apple-border rounded-xl px-3.5 py-2.5 text-xs text-apple-label placeholder:text-apple-secondary/60 focus:outline-none focus:border-apple-blue transition-all"
             />
           </div>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full mt-2 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-lg shadow-emerald-950/60 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full mt-2 bg-apple-blue hover:opacity-90 active:scale-[0.99] disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer"
           >
             {isSubmitting ? (
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -232,9 +232,9 @@ export const AuthScreen: React.FC = () => {
         </form>
 
         {/* Demo Mode Section */}
-        <div className="mt-6 pt-5 border-t border-slate-800 flex flex-col gap-2.5">
+        <div className="mt-6 pt-5 border-t border-apple-border flex flex-col gap-2.5">
           <div className="text-center">
-            <span className="text-[11px] text-slate-400 font-medium">
+            <span className="text-[11px] text-apple-secondary font-medium">
               ¿Deseas evaluar o probar sin registrarte?
             </span>
           </div>
@@ -243,24 +243,24 @@ export const AuthScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => handleDemoAccess('manager')}
-              className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 active:scale-[0.99] text-emerald-400 hover:text-emerald-300 border border-slate-700/80 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              className="py-2.5 px-3 rounded-xl bg-apple-fill hover:opacity-80 active:scale-[0.99] text-apple-label border border-apple-border text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Demo Gestor</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleDemoAccess('staff')}
-              className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 active:scale-[0.99] text-sky-400 hover:text-sky-300 border border-slate-700/80 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+              className="py-2.5 px-3 rounded-xl bg-apple-fill hover:opacity-80 active:scale-[0.99] text-apple-label border border-apple-border text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
             >
-              <UserIcon className="w-3.5 h-3.5 text-sky-400" />
+              <UserIcon className="w-3.5 h-3.5 text-apple-blue" />
               <span>Demo Colaborador</span>
             </button>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 mt-1">
-            <ShieldCheck className="w-3 h-3 text-slate-500" />
+          <div className="flex items-center justify-center gap-2 text-[10px] text-apple-secondary mt-1">
+            <ShieldCheck className="w-3 h-3 text-apple-secondary" />
             <span>Los datos se guardan de forma local en IndexedDB</span>
           </div>
         </div>

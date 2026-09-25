@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { WaiterCall } from '../../types/database';
+import React, { useState, useEffect } from 'react';
+import { WaiterCall, CallReason } from '../../types/database';
 import { calculateUrgency } from '../../utils/urgencyGradient';
 import { playServiceChime } from '../../utils/soundAlert';
 import {
-  X,
   BellRing,
-  Clock,
   CheckCircle2,
+  Clock,
   Navigation,
-  Receipt,
-  HelpCircle,
+  X,
   Volume2,
   VolumeX,
+  Receipt,
+  HelpCircle,
+  UtensilsCrossed,
 } from 'lucide-react';
 
 interface CallsQueueDrawerProps {
@@ -29,41 +30,42 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
   onAttend,
   onResolve,
 }) => {
-  const [currentTime, setCurrentTime] = useState(Date.now());
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const previousCallsCount = useRef(calls.length);
+  const [currentTime, setCurrentTime] = useState(Date.now());
 
-  // Live timer tick every second for continuous chromatic update
+  // Urgent calls timer tick
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    if (!isOpen) return;
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [isOpen]);
 
-  // Play chime on new call arrival
+  // Audio alert on new incoming call
   useEffect(() => {
-    if (calls.length > previousCallsCount.current && soundEnabled) {
+    if (calls.some((c) => c.status === 'pending') && soundEnabled && isOpen) {
       playServiceChime();
     }
-    previousCallsCount.current = calls.length;
-  }, [calls.length, soundEnabled]);
+  }, [calls.length, soundEnabled, isOpen]);
 
   if (!isOpen) return null;
 
-  // Strict FIFO sort: oldest call first
-  const sortedCalls = [...calls].sort((a, b) => a.createdAt - b.createdAt);
+  // Strict FIFO: Oldest pending calls first
+  const sortedCalls = [...calls].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
 
-  const getReasonIcon = (reason: WaiterCall['reason']) => {
+  const getReasonIcon = (reason: CallReason) => {
     switch (reason) {
       case 'bill':
-        return <Receipt className="w-4 h-4 text-amber-400" />;
+        return <Receipt className="w-4 h-4 text-apple-orange" />;
       case 'help':
-        return <HelpCircle className="w-4 h-4 text-sky-400" />;
+        return <HelpCircle className="w-4 h-4 text-apple-blue" />;
       default:
-        return <BellRing className="w-4 h-4 text-emerald-400" />;
+        return <UtensilsCrossed className="w-4 h-4 text-apple-green" />;
     }
   };
 
-  const getReasonLabel = (reason: WaiterCall['reason']) => {
+  const getReasonLabel = (reason: CallReason) => {
     switch (reason) {
       case 'bill':
         return 'Pedir la Cuenta';
@@ -75,32 +77,32 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm flex justify-end animate-in fade-in duration-200">
-      <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl h-full flex flex-col">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-black/40 backdrop-blur-sm flex justify-end animate-in fade-in duration-200 select-none">
+      <div className="w-full max-w-md bg-apple-card border-l border-apple-border shadow-2xl h-full flex flex-col transition-colors">
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+        <div className="p-4 sm:p-5 border-b border-apple-border flex items-center justify-between bg-apple-card/90">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-9 h-9 rounded-2xl bg-apple-orange/15 border border-apple-orange/30 flex items-center justify-center text-apple-orange">
               <BellRing className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-apple-label flex items-center gap-2">
                 Cola de Llamados
                 {calls.length > 0 && (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-slate-950">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-apple-orange text-black">
                     {calls.length}
                   </span>
                 )}
               </h2>
-              <p className="text-[11px] text-slate-400">Orden de atención estricto (FIFO)</p>
+              <p className="text-[11px] text-apple-label-sec">Orden de atención estricto (FIFO)</p>
             </div>
           </div>
 
           <div className="flex items-center gap-1">
             <button
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className={`p-2 rounded-xl transition-colors ${
-                soundEnabled ? 'text-emerald-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-800'
+              className={`p-2 rounded-xl transition-all active:scale-[0.96] touch-manipulation cursor-pointer ${
+                soundEnabled ? 'text-apple-green bg-apple-green/10' : 'text-apple-label-sec hover:bg-apple-fill'
               }`}
               title={soundEnabled ? 'Sonido activado' : 'Sonido silenciado'}
             >
@@ -108,7 +110,7 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+              className="p-2 text-apple-label-sec hover:text-apple-label hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -119,11 +121,11 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {sortedCalls.length === 0 ? (
             <div className="text-center py-16 px-4 space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 rounded-2xl bg-apple-green/15 border border-apple-green/30 text-apple-green flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-white text-sm">Sin llamados pendientes</h3>
-              <p className="text-xs text-slate-500 max-w-xs mx-auto">
+              <h3 className="font-bold text-apple-label text-sm">Sin llamados pendientes</h3>
+              <p className="text-xs text-apple-label-sec max-w-xs mx-auto">
                 Todas las mesas están atendidas. Cuando un cliente pulse el llamado, sonará la campana y aparecerá aquí con su prioridad cromática.
               </p>
             </div>
@@ -134,7 +136,7 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
               return (
                 <div
                   key={call.id}
-                  className={`rounded-2xl p-4 border transition-all duration-500 shadow-xl space-y-3 ${
+                  className={`rounded-2xl p-4 border transition-all duration-300 shadow-md space-y-3 ${
                     urgency.isCritical ? 'animate-pulse' : ''
                   }`}
                   style={{
@@ -145,21 +147,18 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
                   {/* Top Bar: Queue Position & Elapsed Time */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-slate-950 text-white font-mono text-[11px] font-bold flex items-center justify-center border border-slate-700">
+                      <span className="w-5 h-5 rounded-full bg-apple-fill text-apple-label font-mono text-[11px] font-bold flex items-center justify-center border border-apple-border">
                         #{index + 1}
                       </span>
-                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-apple-label flex items-center gap-1.5">
                         {getReasonIcon(call.reason)}
                         {getReasonLabel(call.reason)}
                       </span>
                     </div>
 
                     <div
-                      className="px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1"
-                      style={{
-                        backgroundColor: urgency.hslColor,
-                        color: '#020617',
-                      }}
+                      className="px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 text-black shadow-sm"
+                      style={{ backgroundColor: urgency.hslColor }}
                     >
                       <Clock className="w-3 h-3" />
                       <span>{urgency.formattedTime}</span>
@@ -169,9 +168,9 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
                   {/* Table details and Session Word */}
                   <div className="flex items-center justify-between pt-1">
                     <div>
-                      <h4 className="text-base font-extrabold text-white">{call.tableName}</h4>
-                      <p className="text-xs text-slate-400 font-mono font-medium">
-                        Código: <span className="text-emerald-400 font-bold">{call.sessionWord}</span>
+                      <h4 className="text-base font-extrabold text-apple-label">{call.tableName}</h4>
+                      <p className="text-xs text-apple-label-sec font-mono font-medium">
+                        Código: <span className="text-apple-green font-bold">{call.sessionWord}</span>
                       </p>
                     </div>
 
@@ -180,34 +179,35 @@ export const CallsQueueDrawer: React.FC<CallsQueueDrawerProps> = ({
                       style={{
                         borderColor: urgency.hslColor,
                         color: urgency.hslColor,
+                        backgroundColor: 'rgba(0,0,0,0.2)',
                       }}
                     >
-                      {urgency.urgencyLabel}
+                      {call.status === 'attending' ? 'En camino' : 'Pendiente'}
                     </span>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+                  {/* Actions Buttons */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-apple-border/40">
                     {call.status === 'pending' ? (
                       <button
                         onClick={() => onAttend(call.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-semibold text-xs rounded-xl border border-slate-700 transition-all"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-apple-fill hover:bg-apple-fill/80 text-apple-label font-semibold text-xs rounded-xl border border-apple-border transition-all active:scale-[0.97] touch-manipulation cursor-pointer"
                       >
-                        <Navigation className="w-3.5 h-3.5 text-sky-400" />
-                        <span>En camino</span>
+                        <Navigation className="w-3.5 h-3.5 text-apple-blue" />
+                        <span>Voy en camino</span>
                       </button>
                     ) : (
-                      <span className="flex-1 text-center py-1.5 text-xs text-emerald-400 font-semibold bg-emerald-950/40 rounded-xl border border-emerald-800/40">
+                      <div className="flex-1 text-center py-2 text-xs font-semibold text-apple-green bg-apple-green/15 rounded-xl">
                         Atendiendo ahora
-                      </span>
+                      </div>
                     )}
 
                     <button
                       onClick={() => onResolve(call.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-xs rounded-xl shadow-md shadow-emerald-950 transition-all"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-apple-green text-white font-semibold text-xs rounded-xl shadow-sm hover:opacity-95 transition-all active:scale-[0.97] touch-manipulation cursor-pointer"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Resolver</span>
+                      <span>Resuelto</span>
                     </button>
                   </div>
                 </div>

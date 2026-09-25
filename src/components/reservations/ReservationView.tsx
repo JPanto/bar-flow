@@ -47,14 +47,14 @@ export const ReservationView: React.FC<ReservationViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-slate-950 overflow-y-auto p-4 sm:p-6 space-y-6">
+    <div className="flex-1 flex flex-col h-full bg-apple-bg text-apple-label overflow-y-auto p-4 sm:p-6 space-y-6 transition-colors">
       {/* Top Banner: Date Selector and New Reservation Button */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
         <DateSelector selectedDate={selectedDate} onSelectDate={onSelectDate} />
 
         <button
           onClick={handleOpenNew}
-          className="flex items-center justify-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-sm rounded-2xl shadow-xl shadow-emerald-950/60 transition-all shrink-0"
+          className="flex items-center justify-center gap-2 px-5 py-3 bg-apple-green hover:opacity-95 active:scale-[0.97] text-white font-bold text-sm rounded-2xl shadow-sm transition-all shrink-0 touch-manipulation cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>Nueva Reserva</span>
@@ -63,69 +63,69 @@ export const ReservationView: React.FC<ReservationViewProps> = ({
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-            <CalendarCheck className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="bg-apple-card border border-apple-border p-4 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 text-apple-label-sec text-xs font-semibold uppercase tracking-wider mb-1">
+            <CalendarCheck className="w-3.5 h-3.5 text-apple-green" />
             <span>Total Reservas</span>
           </div>
-          <div className="text-2xl font-black text-white">{dayReservations.length}</div>
-          <div className="text-[11px] text-slate-500 mt-1">
+          <div className="text-2xl font-black text-apple-label">{dayReservations.length}</div>
+          <div className="text-[11px] text-apple-label-sec mt-1">
             {confirmedCount} confirmadas • {seatedCount} sentadas
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-            <Users className="w-3.5 h-3.5 text-blue-400" />
+        <div className="bg-apple-card border border-apple-border p-4 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 text-apple-label-sec text-xs font-semibold uppercase tracking-wider mb-1">
+            <Users className="w-3.5 h-3.5 text-apple-blue" />
             <span>Comensales (Pax)</span>
           </div>
-          <div className="text-2xl font-black text-white">{totalPax}</div>
-          <div className="text-[11px] text-slate-500 mt-1">Personas esperadas hoy</div>
+          <div className="text-2xl font-black text-apple-label">{totalPax}</div>
+          <div className="text-[11px] text-apple-label-sec mt-1">Personas esperadas hoy</div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-            <BookmarkCheck className="w-3.5 h-3.5 text-amber-400" />
+        <div className="bg-apple-card border border-apple-border p-4 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 text-apple-label-sec text-xs font-semibold uppercase tracking-wider mb-1">
+            <BookmarkCheck className="w-3.5 h-3.5 text-apple-orange" />
             <span>Mesas Asignadas</span>
           </div>
-          <div className="text-2xl font-black text-white">
+          <div className="text-2xl font-black text-apple-label">
             {assignedCount} / {dayReservations.length}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1">
+          <div className="text-[11px] text-apple-label-sec mt-1">
             {dayReservations.length - assignedCount} pendientes de asignar
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-          <div className="flex items-center gap-2 text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">
-            <Clock className="w-3.5 h-3.5 text-purple-400" />
+        <div className="bg-apple-card border border-apple-border p-4 rounded-2xl shadow-sm">
+          <div className="flex items-center gap-2 text-apple-label-sec text-xs font-semibold uppercase tracking-wider mb-1">
+            <Clock className="w-3.5 h-3.5 text-apple-purple" />
             <span>Capacidad Total</span>
           </div>
-          <div className="text-2xl font-black text-white">
+          <div className="text-2xl font-black text-apple-label">
             {tables.reduce((acc, t) => acc + t.seats, 0)}
           </div>
-          <div className="text-[11px] text-slate-500 mt-1">Sillas disponibles en local</div>
+          <div className="text-[11px] text-apple-label-sec mt-1">Sillas disponibles en local</div>
         </div>
       </div>
 
-      {/* Main Reservation List */}
+      {/* Main Table List */}
       <ReservationList
         reservations={dayReservations}
         tables={tables}
+        onEdit={handleEdit}
         onSeat={onSeatReservation}
         onComplete={onCompleteReservation}
         onCancel={onCancelReservation}
-        onEdit={handleEdit}
       />
 
-      {/* Reservation Form Modal */}
+      {/* Form Modal */}
       <ReservationModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={onSaveReservation}
         tables={tables}
-        initialData={editingReservation}
         defaultDate={selectedDate}
+        initialData={editingReservation}
       />
     </div>
   );

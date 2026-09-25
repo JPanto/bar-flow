@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createReservation, cancelReservation } from '../../db';
 import { TableElement, Reservation } from '../../types/database';
 import { Navbar, AppTab } from '../layout/Navbar';
+import { AppMenuDrawer } from '../layout/AppMenuDrawer';
 import { ZoneTabs } from '../croquis/ZoneTabs';
 import { CroquisCanvas } from '../croquis/CroquisCanvas';
 import { EditorToolbar } from '../croquis/EditorToolbar';
@@ -84,6 +85,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
   const [isCallsDrawerOpen, setIsCallsDrawerOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [qrTable, setQrTable] = useState<TableElement | null>(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   // Selected date for reservations
   const today = new Date().toISOString().split('T')[0];
@@ -144,6 +146,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
         highestUrgencyColor={highestUrgencyColor}
         onOpenCallsQueue={() => setIsCallsDrawerOpen(true)}
         onOpenBackup={() => setIsBackupOpen(true)}
+        onOpenMenu={() => setIsMenuOpen(true)}
       />
 
       {/* 2. Zone Tabs */}
@@ -258,6 +261,16 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
         calls={sortedActiveCalls}
         onAttend={handleAttendCall}
         onResolve={handleResolveCall}
+      />
+
+      <AppMenuDrawer
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        isOnline={isOnline}
+        pendingSyncCount={pendingSyncCount}
+        activeCallsCount={activeCallsCount}
+        onOpenBackup={() => setIsBackupOpen(true)}
+        onOpenCallsQueue={() => setIsCallsDrawerOpen(true)}
       />
 
       <TableQrModal
