@@ -128,9 +128,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen to Supabase auth events
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    } = supabase.auth.onAuthStateChange((event, currentSession) => {
       if (!isMounted) return;
-      applySession(currentSession);
+      if (currentSession) {
+        applySession(currentSession);
+      } else {
+        // If Supabase emits empty session (e.g. INITIAL_SESSION), preserve demo session if present
+        try {
+          const rawDemo =
+            typeof window !== 'undefined' && window.sessionStorage
+              ? window.sessionStorage.getItem('barflow_demo_session')
+              : null;
+          if (rawDemo && event !== 'SIGNED_OUT') {
+            applySession(JSON.parse(rawDemo));
+          } else {
+            applySession(null);
+          }
+        } catch {
+          applySession(null);
+        }
+      }
       setIsLoading(false);
     });
 

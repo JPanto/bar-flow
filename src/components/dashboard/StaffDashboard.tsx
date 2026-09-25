@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, createReservation, cancelReservation } from '../../db';
 import { TableElement, Reservation } from '../../types/database';
@@ -17,6 +17,7 @@ import { TableQrModal } from '../croquis/TableQrModal';
 import { useRealtimeSync } from '../../hooks/useRealtimeSync';
 import { useWaiterCalls } from '../../hooks/useWaiterCalls';
 import { useTableManagement } from '../../hooks/useTableManagement';
+import { useAuth } from '../../hooks/useAuth';
 import { syncService } from '../../services/syncService';
 
 interface StaffDashboardProps {
@@ -25,6 +26,22 @@ interface StaffDashboardProps {
 
 export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustomer }) => {
   const [currentTab, setCurrentTab] = useState<AppTab>('service');
+  const { role } = useAuth();
+
+  // Role-based access control: fallback from editor to service if not manager
+  useEffect(() => {
+    if (role !== 'manager' && currentTab === 'editor') {
+      setCurrentTab('service');
+    }
+  }, [role, currentTab]);
+
+  const handleSelectTab = (tab: AppTab) => {
+    if (tab === 'editor' && role !== 'manager') {
+      setCurrentTab('service');
+      return;
+    }
+    setCurrentTab(tab);
+  };
 
   // Custom Domain Hooks
   const { isOnline, pendingSyncCount } = useRealtimeSync();
@@ -120,7 +137,7 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
       {/* 1. Main Navigation Bar */}
       <Navbar
         currentTab={currentTab}
-        onSelectTab={setCurrentTab}
+        onSelectTab={handleSelectTab}
         isOnline={isOnline}
         pendingSyncCount={pendingSyncCount}
         activeCallsCount={activeCallsCount}

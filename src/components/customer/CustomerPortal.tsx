@@ -1,16 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { useLiveQuery } from 'dexie-react-hooks';
-import {
-  db,
-  createWaiterCall,
-  cancelWaiterCall,
-  startTableSession,
-  updateTableStatus,
-} from '../../db';
-import { generateSessionWord } from '../../utils/wordGenerator';
-import { calculateUrgency } from '../../utils/urgencyGradient';
-import { realtimeService } from '../../services/realtime';
-import { syncService } from '../../services/syncService';
+import React from 'react';
+import { useCustomerSession } from '../../hooks/useCustomerSession';
 import { CallReason } from '../../types/database';
 import {
   BellRing,
@@ -31,113 +20,26 @@ interface CustomerPortalProps {
 }
 
 export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitToStaff }) => {
-  const [copied, setCopied] = useState(false);
-  const [currentTime, setCurrentTime] = useState(Date.now());
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const {
+    table,
+    activeSession,
+    activeCall,
+    urgency,
+    copied,
+    isSubmitting,
+    handleCopyWord,
+    handleCall,
+    handleCancelCall,
+  } = useCustomerSession(tableId);
 
-  // Live timer tick every 1 second for smooth chromatic gradient transition
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fetch table and active session
-  const table = useLiveQuery(() => db.restaurantTables.get(tableId), [tableId]);
-  const activeSession = useLiveQuery(
-    () => db.table_sessions.where({ tableId, status: 'active' }).first(),
-    [tableId]
-  );
-
-  // Fetch active call for this table
-  const activeCall = useLiveQuery(
-    () =>
-      db.waiter_calls
-        .where('tableId')
-        .equals(tableId)
-        .filter((c) => c.status === 'pending' || c.status === 'attending')
-        .first(),
-    [tableId]
-  );
-
-  // Auto-start table session if none is currently active for this table
-  useEffect(() => {
-    if (!table || activeSession !== null) return;
-
-    let isMounted = true;
-    const initSession = async () => {
-      try {
-        const activeSessions = await db.table_sessions.where({ status: 'active' }).toArray();
-        const activeWords = activeSessions.map((s) => s.sessionWord);
-        const sessionWord = generateSessionWord(activeWords);
-        const session = await startTableSession(db, table.id, sessionWord);
-        if (table.status !== 'occupied') {
-          await updateTableStatus(db, table.id, 'occupied');
-        }
-        if (isMounted) {
-          realtimeService.publish({
-            type: 'SESSION_STARTED',
-            payload: { session },
-            timestamp: Date.now(),
-          });
-          syncService.triggerSync();
-        }
-      } catch (err) {
-        console.error('Error starting table session:', err);
-      }
-    };
-
-    initSession();
-    return () => {
-      isMounted = false;
-    };
-  }, [table, activeSession]);
-
-  const urgency = activeCall
-    ? calculateUrgency(activeCall.createdAt, currentTime)
-    : null;
-
-  const handleCopyWord = () => {
-    if (activeSession?.sessionWord) {
-      navigator.clipboard.writeText(activeSession.sessionWord);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+  const handleExit = () => {
+    if (onExitToStaff) {
+      onExitToStaff();
+    } else {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('mesa');
+      window.location.href = url.pathname + (url.search ? url.search : '');
     }
-  };
-
-  const handleCall = async (reason: CallReason) => {
-    if (!table || !activeSession || isSubmitting) return;
-
-    try {
-      setIsSubmitting(true);
-      const call = await createWaiterCall(db, {
-        tableId: table.id,
-        sessionId: activeSession.id,
-        tableName: table.name,
-        sessionWord: activeSession.sessionWord,
-        reason,
-      });
-
-      // Broadcast in real-time
-      realtimeService.publish({
-        type: 'CALL_CREATED',
-        payload: { call },
-        timestamp: Date.now(),
-      });
-      syncService.triggerSync();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCancelCall = async () => {
-    if (!activeCall) return;
-    await cancelWaiterCall(db, activeCall.id);
-    realtimeService.publish({
-      type: 'CALL_CANCELLED',
-      payload: { callId: activeCall.id },
-      timestamp: Date.now(),
-    });
-    syncService.triggerSync();
   };
 
   if (!table) {
@@ -148,14 +50,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
         <p className="text-slate-400 text-sm max-w-sm mb-6">
           El identificador de mesa no es válido o la mesa fue removida del plano.
         </p>
-        {onExitToStaff && (
-          <button
-            onClick={onExitToStaff}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl"
-          >
-            Ir al Panel Principal
-          </button>
-        )}
+        <button
+          onClick={handleExit}
+          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-xl"
+        >
+          Ir al Panel Principal
+        </button>
       </div>
     );
   }
@@ -188,14 +88,12 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({ tableId, onExitT
           </div>
         </div>
 
-        {onExitToStaff && (
-          <button
-            onClick={onExitToStaff}
-            className="text-[11px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg hover:bg-slate-800/80 border border-slate-800 transition-colors"
-          >
-            Volver a Staff
-          </button>
-        )}
+        <button
+          onClick={handleExit}
+          className="text-[11px] text-slate-400 hover:text-white px-2.5 py-1 rounded-lg hover:bg-slate-800/80 border border-slate-800 transition-colors"
+        >
+          Ir al Panel Principal
+        </button>
       </header>
 
       {/* Main Content Area */}

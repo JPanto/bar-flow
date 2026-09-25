@@ -66,17 +66,19 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="hidden sm:inline">En Servicio</span>
         </button>
 
-        <button
-          onClick={() => onSelectTab('editor')}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-            currentTab === 'editor'
-              ? 'bg-sky-600 text-white shadow-md shadow-sky-950'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-          }`}
-        >
-          <LayoutGrid className="w-4 h-4" />
-          <span className="hidden sm:inline">Editor Croquis</span>
-        </button>
+        {role === 'manager' && (
+          <button
+            onClick={() => onSelectTab('editor')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all ${
+              currentTab === 'editor'
+                ? 'bg-sky-600 text-white shadow-md shadow-sky-950'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span className="hidden sm:inline">Editor Croquis</span>
+          </button>
+        )}
 
         <button
           onClick={() => onSelectTab('reservations')}

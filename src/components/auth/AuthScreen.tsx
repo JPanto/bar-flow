@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { UtensilsCrossed, LogIn, Building2, Sparkles, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import {
+  UtensilsCrossed,
+  LogIn,
+  Building2,
+  Sparkles,
+  AlertCircle,
+  ArrowRight,
+  ShieldCheck,
+  CheckCircle2,
+  User as UserIcon,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { isSupabaseConfigured } from '../../services/supabase';
 
@@ -16,11 +26,13 @@ export const AuthScreen: React.FC = () => {
 
   // UI state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+    setInfoMessage(null);
     setIsSubmitting(true);
 
     try {
@@ -43,7 +55,7 @@ export const AuthScreen: React.FC = () => {
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '') || 'tenant-local';
 
-        const { error } = await signUp(email, password, {
+        const { data, error } = await signUp(email, password, {
           name: establishmentName.trim(),
           role: 'manager',
           tenantId: tenantSlug,
@@ -51,6 +63,10 @@ export const AuthScreen: React.FC = () => {
 
         if (error) {
           setErrorMessage(error.message || 'Error al registrar el establecimiento.');
+        } else if (data?.user && !data?.session) {
+          setInfoMessage(
+            '¡Registro completado! Por favor revisa tu correo electrónico para confirmar tu cuenta antes de iniciar sesión.'
+          );
         }
       }
     } catch (err: any) {
@@ -62,6 +78,7 @@ export const AuthScreen: React.FC = () => {
 
   const handleDemoAccess = (role: 'manager' | 'staff' = 'manager') => {
     setErrorMessage(null);
+    setInfoMessage(null);
     continueAsDemo(role);
   };
 
@@ -106,6 +123,7 @@ export const AuthScreen: React.FC = () => {
             onClick={() => {
               setActiveTab('login');
               setErrorMessage(null);
+              setInfoMessage(null);
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'login'
@@ -121,6 +139,7 @@ export const AuthScreen: React.FC = () => {
             onClick={() => {
               setActiveTab('signup');
               setErrorMessage(null);
+              setInfoMessage(null);
             }}
             className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold transition-all ${
               activeTab === 'signup'
@@ -132,6 +151,14 @@ export const AuthScreen: React.FC = () => {
             Registrar Local
           </button>
         </div>
+
+        {/* Info message (e.g. Email confirmation required) */}
+        {infoMessage && (
+          <div className="mb-4 p-3 rounded-xl bg-emerald-950/40 border border-emerald-800/50 text-emerald-300 text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <span>{infoMessage}</span>
+          </div>
+        )}
 
         {/* Error message */}
         {errorMessage && (
@@ -212,14 +239,25 @@ export const AuthScreen: React.FC = () => {
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={() => handleDemoAccess('manager')}
-            className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700/80 active:scale-[0.99] text-emerald-400 hover:text-emerald-300 border border-slate-700/80 text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            Continuar en Modo Demo / Pruebas
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleDemoAccess('manager')}
+              className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 active:scale-[0.99] text-emerald-400 hover:text-emerald-300 border border-slate-700/80 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Demo Gestor</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleDemoAccess('staff')}
+              className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700/80 active:scale-[0.99] text-sky-400 hover:text-sky-300 border border-slate-700/80 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <UserIcon className="w-3.5 h-3.5 text-sky-400" />
+              <span>Demo Colaborador</span>
+            </button>
+          </div>
 
           <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 mt-1">
             <ShieldCheck className="w-3 h-3 text-slate-500" />
