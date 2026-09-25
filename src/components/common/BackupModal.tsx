@@ -59,38 +59,40 @@ export const BackupModal: React.FC<BackupModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-in fade-in duration-150 select-none">
+      <div className="bg-apple-card border border-apple-border rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col transition-all">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-              <ShieldCheck className="w-4 h-4" />
+        <div className="flex items-center justify-between px-6 py-4 border-b border-apple-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-apple-green/15 border border-apple-green/30 flex items-center justify-center text-apple-green">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Copia de Seguridad y Sincronización</h3>
-              <p className="text-[11px] text-slate-400">Persistencia local sin conexión (IndexedDB)</p>
+              <h3 className="text-base font-bold text-apple-label leading-tight">
+                Copia de Seguridad y Sincronización
+              </h3>
+              <p className="text-[11px] text-apple-label-sec">Persistencia local sin conexión (IndexedDB)</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+            className="p-1.5 text-apple-label-sec hover:text-apple-label hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-5 text-xs">
-          {/* Outbox Queue status */}
-          <div className="bg-slate-950/70 border border-slate-800 p-3.5 rounded-2xl space-y-1">
+          {/* Outbox Queue status in Apple grouped inset */}
+          <div className="bg-apple-secondary border border-apple-border p-4 rounded-2xl space-y-1.5">
             <div className="flex items-center justify-between">
-              <span className="font-semibold text-slate-300">Cola Outbox (Eventos Pendientes):</span>
-              <span className="font-bold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded-lg border border-emerald-800/40">
+              <span className="font-semibold text-apple-label">Cola Outbox (Eventos Pendientes):</span>
+              <span className="font-bold text-apple-green bg-apple-green/15 px-2.5 py-0.5 rounded-lg border border-apple-green/30">
                 {pendingSyncCount} eventos
               </span>
             </div>
-            <p className="text-slate-500 text-[11px]">
+            <p className="text-apple-label-sec text-[11px] leading-relaxed">
               Tus cambios se guardan localmente y están listos para enviarse al backend o WebSockets en cuanto se conecte el servidor.
             </p>
           </div>
@@ -98,18 +100,18 @@ export const BackupModal: React.FC<BackupModalProps> = ({
           {/* Feedback message */}
           {message && (
             <div
-              className={`p-3 rounded-xl border flex items-center gap-2 ${
+              className={`p-3.5 rounded-2xl border flex items-center gap-2.5 ${
                 message.type === 'success'
-                  ? 'bg-emerald-950/40 border-emerald-800/50 text-emerald-300'
-                  : 'bg-rose-950/40 border-rose-800/50 text-rose-300'
+                  ? 'bg-apple-green/15 border-apple-green/30 text-apple-green'
+                  : 'bg-apple-red/15 border-apple-red/30 text-apple-red'
               }`}
             >
               {message.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                <CheckCircle2 className="w-4 h-4 shrink-0 text-apple-green" />
               ) : (
-                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+                <AlertTriangle className="w-4 h-4 shrink-0 text-apple-red" />
               )}
-              <span>{message.text}</span>
+              <span className="font-medium text-apple-label">{message.text}</span>
             </div>
           )}
 
@@ -118,14 +120,14 @@ export const BackupModal: React.FC<BackupModalProps> = ({
             <button
               onClick={handleExport}
               disabled={isProcessing}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-800 hover:bg-slate-700 active:scale-95 text-white font-semibold rounded-xl border border-slate-700 transition-all shadow-md"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-apple-green text-white font-semibold rounded-2xl shadow-sm hover:opacity-95 active:scale-[0.98] transition-transform duration-100 touch-manipulation cursor-pointer"
             >
-              <Download className="w-4 h-4 text-emerald-400" />
+              <Download className="w-4 h-4" />
               <span>Descargar Respaldo JSON</span>
             </button>
 
-            <label className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-slate-950 hover:bg-slate-900 active:scale-95 text-slate-300 hover:text-white font-semibold rounded-xl border border-dashed border-slate-700 cursor-pointer transition-all">
-              <Upload className="w-4 h-4 text-sky-400" />
+            <label className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-apple-fill text-apple-label hover:bg-apple-fill/80 active:scale-[0.98] font-semibold rounded-2xl border border-dashed border-apple-border cursor-pointer transition-transform duration-100 touch-manipulation">
+              <Upload className="w-4 h-4 text-apple-blue" />
               <span>Restaurar desde archivo JSON</span>
               <input
                 type="file"
@@ -139,10 +141,10 @@ export const BackupModal: React.FC<BackupModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 bg-slate-950/40 border-t border-slate-800 flex justify-end">
+        <div className="px-6 py-3.5 bg-apple-secondary/60 border-t border-apple-border flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-apple-label-sec hover:text-apple-label hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer"
           >
             Cerrar
           </button>

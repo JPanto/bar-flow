@@ -3,18 +3,7 @@ import { TableElement, Reservation, TableStatus, TableSession, WaiterCall } from
 import { getTableStatusColors } from '../../utils/canvasUtils';
 import { calculateUrgency } from '../../utils/urgencyGradient';
 import {
-  X,
-  Users,
-  CheckCircle,
-  Ban,
-  Clock,
-  Phone,
-  UserCheck,
-  Calendar,
-  AlertCircle,
-  QrCode,
-  BellRing,
-  Navigation,
+  X, Users, CheckCircle, Ban, Clock, Phone, UserCheck, Calendar, AlertCircle, QrCode, BellRing, Navigation
 } from 'lucide-react';
 
 interface TableServiceModalProps {
@@ -34,124 +23,78 @@ interface TableServiceModalProps {
 }
 
 export const TableServiceModal: React.FC<TableServiceModalProps> = ({
-  table,
-  activeReservation,
-  activeSession,
-  activeCall,
-  isOpen,
-  onClose,
-  onUpdateStatus,
-  onSeatReservation,
-  onCompleteReservation,
-  onOpenReservationForm,
-  onOpenQrModal,
-  onAttendCall,
-  onResolveCall,
+  table, activeReservation, activeSession, activeCall, isOpen, onClose,
+  onUpdateStatus, onSeatReservation, onCompleteReservation, onOpenReservationForm,
+  onOpenQrModal, onAttendCall, onResolveCall,
 }) => {
   if (!isOpen || !table) return null;
-
   const statusColors = getTableStatusColors(table.status);
   const callUrgency = activeCall ? calculateUrgency(activeCall.createdAt) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-        {/* Header with Table Badge */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800 bg-slate-900/50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 animate-in fade-in duration-150 select-none">
+      <div className="bg-apple-card border border-apple-border rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col transition-all">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-apple-border">
           <div className="flex items-center gap-3">
             <div
-              className="w-12 h-12 rounded-2xl flex items-center justify-center font-bold text-lg border shadow-lg"
-              style={{
-                backgroundColor: statusColors.fill,
-                borderColor: statusColors.stroke,
-                color: statusColors.badgeText,
-              }}
+              className="w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-base border shadow-sm"
+              style={{ backgroundColor: statusColors.fill, borderColor: statusColors.stroke, color: statusColors.badgeText }}
             >
               {table.seats}p
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-xl font-bold text-white">{table.name}</h3>
+                <h3 className="text-lg font-bold text-apple-label leading-tight">{table.name}</h3>
                 <span
-                  className="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                  style={{
-                    backgroundColor: `${statusColors.stroke}25`,
-                    color: statusColors.stroke,
-                  }}
+                  className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                  style={{ backgroundColor: `${statusColors.stroke}25`, color: statusColors.stroke }}
                 >
                   {statusColors.label}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-xs text-slate-400">
-                  Capacidad: {table.seats} comensales
-                </p>
+                <p className="text-xs text-apple-label-sec">Capacidad: {table.seats} comensales</p>
                 {activeSession && (
-                  <span className="font-mono text-[11px] font-bold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-800/40">
+                  <span className="font-mono text-[10px] font-bold text-apple-green bg-apple-green/15 px-2 py-0.5 rounded-md border border-apple-green/30">
                     {activeSession.sessionWord}
                   </span>
                 )}
               </div>
             </div>
           </div>
-
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors"
-          >
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-1.5 text-apple-label-sec hover:text-apple-label hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content Body */}
         <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-          {/* Active Call Notification Alert (If table has pending call) */}
+          {/* Active Call Alert */}
           {activeCall && callUrgency && (
             <div
-              className="border rounded-2xl p-3.5 space-y-2.5 shadow-lg"
-              style={{
-                backgroundColor: callUrgency.hslBgColor,
-                borderColor: callUrgency.hslColor,
-              }}
+              className="border rounded-2xl p-3.5 space-y-2.5 shadow-md"
+              style={{ backgroundColor: callUrgency.hslBgColor, borderColor: callUrgency.hslColor }}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                  <BellRing className="w-4 h-4 text-amber-400 animate-bounce" />
-                  <span>
-                    Llamado Activo: {activeCall.reason === 'bill' ? 'Pedir Cuenta' : 'Llamar Mesero'}
-                  </span>
+                <div className="flex items-center gap-1.5 text-xs font-bold text-apple-label">
+                  <BellRing className="w-4 h-4 text-apple-orange animate-bounce" />
+                  <span>Llamado: {activeCall.reason === 'bill' ? 'Pedir Cuenta' : 'Mesero'}</span>
                 </div>
-                <span
-                  className="text-[11px] font-extrabold px-2 py-0.5 rounded-full text-slate-950"
-                  style={{ backgroundColor: callUrgency.hslColor }}
-                >
+                <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full text-black" style={{ backgroundColor: callUrgency.hslColor }}>
                   {callUrgency.formattedTime}
                 </span>
               </div>
-
               <div className="flex items-center gap-2 pt-1">
                 {activeCall.status === 'pending' ? (
-                  <button
-                    onClick={() => {
-                      if (onAttendCall) onAttendCall(activeCall.id);
-                    }}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs rounded-xl border border-slate-700 transition-colors"
-                  >
-                    <Navigation className="w-3.5 h-3.5 text-sky-400" />
+                  <button onClick={() => onAttendCall && onAttendCall(activeCall.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-apple-fill text-apple-label font-semibold text-xs rounded-xl active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                    <Navigation className="w-3.5 h-3.5 text-apple-blue" />
                     <span>En camino</span>
                   </button>
                 ) : (
-                  <span className="flex-1 text-center py-1.5 text-xs text-emerald-400 font-semibold bg-emerald-950/60 rounded-xl">
-                    Atendiendo
-                  </span>
+                  <span className="flex-1 text-center py-1.5 text-xs text-apple-green font-semibold bg-apple-green/15 rounded-xl">Atendiendo</span>
                 )}
-
-                <button
-                  onClick={() => {
-                    if (onResolveCall) onResolveCall(activeCall.id);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-md transition-colors"
-                >
+                <button onClick={() => onResolveCall && onResolveCall(activeCall.id)} className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 bg-apple-green text-white font-semibold text-xs rounded-xl shadow-sm active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
                   <CheckCircle className="w-3.5 h-3.5" />
                   <span>Resolver</span>
                 </button>
@@ -159,153 +102,68 @@ export const TableServiceModal: React.FC<TableServiceModalProps> = ({
             </div>
           )}
 
-          {/* Active Reservation Details Card (if any) */}
+          {/* Active Reservation Details Card */}
           {activeReservation ? (
-            <div className="bg-amber-950/30 border border-amber-500/30 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between text-amber-400 font-semibold text-sm">
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4" />
-                  <span>Reserva Asignada</span>
-                </div>
-                <span className="flex items-center gap-1 text-xs">
-                  <Clock className="w-3.5 h-3.5" />
-                  {activeReservation.time}
-                </span>
+            <div className="bg-apple-orange/10 border border-apple-orange/30 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between text-apple-orange font-semibold text-sm">
+                <div className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /><span>Reserva Asignada</span></div>
+                <span className="flex items-center gap-1 text-xs"><Clock className="w-3.5 h-3.5" />{activeReservation.time}</span>
               </div>
-
               <div className="text-sm space-y-1">
-                <div className="font-bold text-white flex items-center gap-2">
+                <div className="font-bold text-apple-label flex items-center gap-2">
                   <span>{activeReservation.customerName}</span>
-                  <span className="text-xs font-normal text-amber-300">
-                    ({activeReservation.pax} comensales)
-                  </span>
+                  <span className="text-xs font-normal text-apple-orange">({activeReservation.pax} pax)</span>
                 </div>
-                <div className="text-xs text-slate-400 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5" />
-                  {activeReservation.customerPhone}
-                </div>
-                {activeReservation.notes && (
-                  <p className="text-xs italic text-amber-200/80 bg-amber-950/40 p-2 rounded-lg mt-2">
-                    "{activeReservation.notes}"
-                  </p>
-                )}
+                <div className="text-xs text-apple-label-sec flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" />{activeReservation.customerPhone}</div>
+                {activeReservation.notes && <p className="text-xs italic text-apple-label-sec bg-apple-fill p-2 rounded-xl mt-1">"{activeReservation.notes}"</p>}
               </div>
-
-              {activeReservation.status === 'confirmed' && (
-                <button
-                  onClick={() => {
-                    onSeatReservation(activeReservation.id, table.id);
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-semibold text-xs rounded-xl shadow-lg shadow-emerald-950 transition-all"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  Sentar Reserva Ahora
+              {activeReservation.status === 'confirmed' ? (
+                <button onClick={() => { onSeatReservation(activeReservation.id, table.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-apple-green text-white font-semibold text-xs rounded-xl shadow-sm active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                  <UserCheck className="w-4 h-4" />Sentar Reserva Ahora
                 </button>
-              )}
-
-              {activeReservation.status === 'seated' && (
-                <button
-                  onClick={() => {
-                    onCompleteReservation(activeReservation.id, table.id);
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs rounded-xl transition-all"
-                >
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  Finalizar Atención y Liberar Mesa
+              ) : (
+                <button onClick={() => { onCompleteReservation(activeReservation.id, table.id); onClose(); }} className="w-full flex items-center justify-center gap-2 py-2 px-4 bg-apple-fill text-apple-label font-semibold text-xs rounded-xl active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                  <CheckCircle className="w-4 h-4 text-apple-green" />Finalizar y Liberar
                 </button>
               )}
             </div>
           ) : (
-            <div className="text-xs text-slate-400 bg-slate-950/50 p-3 rounded-xl border border-slate-800/80 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />
+            <div className="text-xs text-apple-label-sec bg-apple-secondary p-3 rounded-2xl border border-apple-border flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-apple-label-ter shrink-0" />
               <span>No hay reservas vinculadas a esta mesa en este momento.</span>
             </div>
           )}
 
           {/* Quick Status Action Grid */}
           <div className="space-y-2">
-            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Acciones de Mesa
-            </label>
-
+            <label className="block text-xs font-bold text-apple-label-sec uppercase tracking-wider">Acciones de Mesa</label>
             <div className="grid grid-cols-2 gap-2.5">
               {table.status !== 'occupied' ? (
-                <button
-                  onClick={() => {
-                    onUpdateStatus(table.id, 'occupied');
-                    onClose();
-                  }}
-                  className="flex items-center justify-center gap-2 py-3 px-4 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/50 text-rose-300 font-semibold text-xs rounded-xl transition-all active:scale-95 shadow-md shadow-rose-950/30"
-                >
-                  <Users className="w-4 h-4 text-rose-400" />
-                  Ocupar Mesa (Walk-in)
+                <button onClick={() => { onUpdateStatus(table.id, 'occupied'); onClose(); }} className="flex items-center justify-center gap-2 py-2.5 px-3 bg-apple-red/15 text-apple-red border border-apple-red/30 font-semibold text-xs rounded-xl active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                  <Users className="w-4 h-4" />Ocupar Mesa
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    onUpdateStatus(table.id, 'available');
-                    if (activeReservation) {
-                      onCompleteReservation(activeReservation.id, table.id);
-                    }
-                    onClose();
-                  }}
-                  className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/50 text-emerald-300 font-semibold text-xs rounded-xl transition-all active:scale-95 shadow-md shadow-emerald-950/30"
-                >
-                  <CheckCircle className="w-4 h-4 text-emerald-400" />
-                  Liberar Mesa
+                <button onClick={() => { onUpdateStatus(table.id, 'available'); if (activeReservation) onCompleteReservation(activeReservation.id, table.id); onClose(); }} className="flex items-center justify-center gap-2 py-2.5 px-3 bg-apple-green/15 text-apple-green border border-apple-green/30 font-semibold text-xs rounded-xl active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                  <CheckCircle className="w-4 h-4" />Liberar Mesa
                 </button>
               )}
 
               {table.status !== 'reserved' ? (
-                <button
-                  onClick={() => {
-                    onOpenReservationForm(table.id);
-                    onClose();
-                  }}
-                  className="flex items-center justify-center gap-2 py-3 px-4 bg-amber-950/60 hover:bg-amber-900/80 border border-amber-800/50 text-amber-300 font-semibold text-xs rounded-xl transition-all active:scale-95"
-                >
-                  <Calendar className="w-4 h-4 text-amber-400" />
-                  Reservar Mesa
+                <button onClick={() => { onOpenReservationForm(table.id); onClose(); }} className="flex items-center justify-center gap-2 py-2.5 px-3 bg-apple-orange/15 text-apple-orange border border-apple-orange/30 font-semibold text-xs rounded-xl active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                  <Calendar className="w-4 h-4" />Reservar Mesa
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    onUpdateStatus(table.id, 'available');
-                    onClose();
-                  }}
-                  className="flex items-center justify-center gap-2 py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl transition-all"
-                >
+                <button onClick={() => { onUpdateStatus(table.id, 'available'); onClose(); }} className="flex items-center justify-center gap-2 py-2.5 px-3 bg-apple-fill text-apple-label font-semibold text-xs rounded-xl active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
                   Quitar Reserva
                 </button>
               )}
 
-              {/* QR Code and Customer Link launcher button */}
-              <button
-                onClick={() => {
-                  if (onOpenQrModal) onOpenQrModal(table);
-                  onClose();
-                }}
-                className="col-span-2 flex items-center justify-center gap-2 py-2.5 px-4 font-semibold text-xs rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 transition-all shadow-md"
-              >
-                <QrCode className="w-4 h-4" />
-                <span>Código QR & Vista Cliente Móvil</span>
+              <button onClick={() => { if (onOpenQrModal) onOpenQrModal(table); onClose(); }} className="col-span-2 flex items-center justify-center gap-2 py-2.5 px-4 font-semibold text-xs rounded-xl bg-apple-green/15 text-apple-green border border-apple-green/30 active:scale-[0.97] transition-all touch-manipulation cursor-pointer">
+                <QrCode className="w-4 h-4" /><span>Código QR & Vista Cliente Móvil</span>
               </button>
 
-              <button
-                onClick={() => {
-                  onUpdateStatus(table.id, table.status === 'blocked' ? 'available' : 'blocked');
-                  onClose();
-                }}
-                className={`col-span-2 flex items-center justify-center gap-2 py-2.5 px-4 font-semibold text-xs rounded-xl border transition-all ${
-                  table.status === 'blocked'
-                    ? 'bg-slate-800 text-emerald-400 border-slate-700'
-                    : 'bg-slate-950/60 hover:bg-slate-800 text-slate-400 border-slate-800'
-                }`}
-              >
-                <Ban className="w-3.5 h-3.5" />
-                {table.status === 'blocked' ? 'Desbloquear Mesa' : 'Bloquear Mesa (Fuera de Servicio)'}
+              <button onClick={() => { onUpdateStatus(table.id, table.status === 'blocked' ? 'available' : 'blocked'); onClose(); }} className={`col-span-2 flex items-center justify-center gap-2 py-2.5 px-4 font-semibold text-xs rounded-xl border active:scale-[0.97] transition-all touch-manipulation cursor-pointer ${table.status === 'blocked' ? 'bg-apple-green/15 text-apple-green border-apple-green/30' : 'bg-apple-fill text-apple-label-sec border-apple-border hover:text-apple-label'}`}>
+                <Ban className="w-3.5 h-3.5" />{table.status === 'blocked' ? 'Desbloquear Mesa' : 'Bloquear Mesa (Fuera de Servicio)'}
               </button>
             </div>
           </div>

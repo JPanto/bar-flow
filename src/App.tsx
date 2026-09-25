@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CustomerPortal } from './components/customer/CustomerPortal';
+import { ThemeProvider } from './context/ThemeContext';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './hooks/useAuth';
 import { AuthScreen } from './components/auth/AuthScreen';
@@ -51,8 +52,8 @@ const AppContent: React.FC = () => {
   // Loading session
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 text-slate-400 h-screen w-screen">
-        <p className="animate-pulse text-xs tracking-wider uppercase">Cargando sesión...</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-apple-bg text-apple-label-sec h-[100dvh] w-screen">
+        <p className="animate-pulse text-xs tracking-wider uppercase font-medium">Cargando sesión...</p>
       </div>
     );
   }
@@ -68,9 +69,11 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 

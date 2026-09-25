@@ -8,6 +8,30 @@ export default {
   theme: {
     extend: {
       colors: {
+        apple: {
+          bg: 'var(--apple-bg)',
+          primary: 'var(--apple-bg-primary)',
+          secondary: 'var(--apple-bg-secondary)',
+          tertiary: 'var(--apple-bg-tertiary)',
+          grouped: 'var(--apple-bg-grouped)',
+          card: 'var(--apple-card)',
+          'card-elevated': 'var(--apple-card-elevated)',
+          label: 'var(--apple-label)',
+          'label-sec': 'var(--apple-label-secondary)',
+          'label-ter': 'var(--apple-label-tertiary)',
+          separator: 'var(--apple-separator)',
+          border: 'var(--apple-border)',
+          fill: 'var(--apple-fill)',
+          blue: 'var(--apple-blue)',
+          green: 'var(--apple-green)',
+          indigo: 'var(--apple-indigo)',
+          orange: 'var(--apple-orange)',
+          pink: 'var(--apple-pink)',
+          purple: 'var(--apple-purple)',
+          red: 'var(--apple-red)',
+          teal: 'var(--apple-teal)',
+          yellow: 'var(--apple-yellow)',
+        },
         brand: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -16,10 +40,10 @@ export default {
           700: '#15803d',
         },
         status: {
-          available: '#10b981', // Emerald
-          occupied: '#ef4444',  // Rose / Red
-          reserved: '#f59e0b',  // Amber
-          blocked: '#64748b',   // Slate
+          available: '#34c759', // Apple HIG Green
+          occupied: '#ff3b30',  // Apple HIG Red
+          reserved: '#ff9500',  // Apple HIG Orange
+          blocked: '#8e8e93',   // Apple HIG Gray
         }
       }
     },

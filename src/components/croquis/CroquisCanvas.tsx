@@ -39,11 +39,12 @@ export const CroquisCanvas: React.FC<CroquisCanvasProps> = ({
   const [position, setPosition] = useState({ x: 40, y: 40 });
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-  // Live timer tick every 1s for halo urgency updates
+  // Only run the 1s urgency timer tick when there are active calls, avoiding idle re-renders
   useEffect(() => {
+    if (activeCalls.length === 0) return;
     const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [activeCalls.length]);
 
   // Update container size on resize
   useEffect(() => {
@@ -134,7 +135,7 @@ export const CroquisCanvas: React.FC<CroquisCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden cursor-default select-none"
+      className="relative flex-1 w-full h-full bg-apple-bg overflow-hidden cursor-default select-none"
     >
       <Stage
         ref={stageRef}
@@ -188,53 +189,55 @@ export const CroquisCanvas: React.FC<CroquisCanvasProps> = ({
             );
           })}
 
-          {/* Transformer handles for active selection */}
+          {/* Transformer handles with Apple Design colors and ignoreStroke for max speed */}
           {isEditorMode && (
             <Transformer
               ref={transformerRef}
+              ignoreStroke={true}
+              keepRatio={false}
               boundBoxFunc={(oldBox, newBox) => {
-                // Minimum table dimensions 50px
                 if (newBox.width < 50 || newBox.height < 50) {
                   return oldBox;
                 }
                 return newBox;
               }}
-              anchorSize={9}
+              anchorSize={8}
               anchorCornerRadius={4}
-              anchorFill="#38bdf8"
-              anchorStroke="#0369a1"
-              borderStroke="#38bdf8"
+              anchorFill="#ffffff"
+              anchorStroke="#0a84ff"
+              borderStroke="#0a84ff"
+              borderStrokeWidth={1.5}
               borderDash={[4, 4]}
-              rotateAnchorOffset={24}
+              rotateAnchorOffset={22}
             />
           )}
         </Layer>
       </Stage>
 
-      {/* Floating Canvas Controls */}
-      <div className="absolute bottom-5 right-5 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-xl border border-slate-800 shadow-xl z-10 text-slate-300">
+      {/* Floating Canvas Controls with Apple Glassmorphism */}
+      <div className="absolute bottom-5 right-5 flex items-center gap-1.5 bg-apple-card/85 backdrop-blur-xl p-1.5 rounded-2xl border border-apple-border shadow-xl z-10 text-apple-label transition-all">
         <button
           onClick={() => handleZoom('in')}
-          className="p-2 hover:bg-slate-800 active:scale-95 rounded-lg transition-colors"
+          className="p-2 hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer"
           title="Acercar (Zoom In)"
         >
-          <ZoomIn className="w-4 h-4" />
+          <ZoomIn className="w-4 h-4 text-apple-label" />
         </button>
         <button
           onClick={() => handleZoom('out')}
-          className="p-2 hover:bg-slate-800 active:scale-95 rounded-lg transition-colors"
+          className="p-2 hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer"
           title="Alejar (Zoom Out)"
         >
-          <ZoomOut className="w-4 h-4" />
+          <ZoomOut className="w-4 h-4 text-apple-label" />
         </button>
         <button
           onClick={() => handleZoom('reset')}
-          className="p-2 hover:bg-slate-800 active:scale-95 rounded-lg transition-colors"
+          className="p-2 hover:bg-apple-fill active:scale-[0.96] rounded-xl transition-all touch-manipulation cursor-pointer"
           title="Restablecer Vista"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw className="w-4 h-4 text-apple-label" />
         </button>
-        <div className="px-2 text-xs font-semibold text-slate-400 min-w-12 text-center border-l border-slate-800">
+        <div className="px-2.5 text-xs font-semibold text-apple-label-sec min-w-12 text-center border-l border-apple-border">
           {Math.round(scale * 100)}%
         </div>
       </div>

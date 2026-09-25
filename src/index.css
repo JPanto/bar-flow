@@ -2,33 +2,143 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ==========================================================================
+   Apple Human Interface Guidelines (HIG) Design Tokens & Dynamic Theming
+   ========================================================================== */
+
 :root {
+  color-scheme: light;
+  --apple-bg: #f2f2f7;
+  --apple-bg-primary: #ffffff;
+  --apple-bg-secondary: #f2f2f7;
+  --apple-bg-tertiary: #ffffff;
+  --apple-bg-grouped: #f2f2f7;
+  --apple-card: #ffffff;
+  --apple-card-elevated: #ffffff;
+
+  --apple-label: #000000;
+  --apple-label-secondary: rgba(60, 60, 67, 0.60);
+  --apple-label-tertiary: rgba(60, 60, 67, 0.30);
+  --apple-label-quaternary: rgba(60, 60, 67, 0.18);
+
+  --apple-separator: rgba(60, 60, 67, 0.20);
+  --apple-separator-opaque: #c6c6c8;
+  --apple-border: rgba(0, 0, 0, 0.08);
+
+  --apple-fill: rgba(120, 120, 128, 0.16);
+  --apple-fill-secondary: rgba(120, 120, 128, 0.12);
+  --apple-fill-tertiary: rgba(118, 118, 128, 0.08);
+
+  /* Apple HIG Accent Colors (Light) */
+  --apple-blue: #007aff;
+  --apple-green: #34c759;
+  --apple-indigo: #5856d6;
+  --apple-orange: #ff9500;
+  --apple-pink: #ff2d55;
+  --apple-purple: #af52de;
+  --apple-red: #ff3b30;
+  --apple-teal: #5ac8fa;
+  --apple-yellow: #ffcc00;
+
+  /* Glassmorphism materials */
+  --apple-glass-bg: rgba(255, 255, 255, 0.72);
+  --apple-glass-border: rgba(255, 255, 255, 0.60);
+  --apple-glass-nav: rgba(246, 246, 246, 0.82);
+}
+
+.dark {
   color-scheme: dark;
+  --apple-bg: #000000;
+  --apple-bg-primary: #000000;
+  --apple-bg-secondary: #1c1c1e;
+  --apple-bg-tertiary: #2c2c2e;
+  --apple-bg-grouped: #000000;
+  --apple-card: #1c1c1e;
+  --apple-card-elevated: #2c2c2e;
+
+  --apple-label: #ffffff;
+  --apple-label-secondary: rgba(235, 235, 245, 0.60);
+  --apple-label-tertiary: rgba(235, 235, 245, 0.30);
+  --apple-label-quaternary: rgba(235, 235, 245, 0.18);
+
+  --apple-separator: rgba(84, 84, 88, 0.45);
+  --apple-separator-opaque: #38383a;
+  --apple-border: rgba(255, 255, 255, 0.10);
+
+  --apple-fill: rgba(120, 120, 128, 0.32);
+  --apple-fill-secondary: rgba(120, 120, 128, 0.24);
+  --apple-fill-tertiary: rgba(118, 118, 128, 0.16);
+
+  /* Apple HIG Accent Colors (Dark) */
+  --apple-blue: #0a84ff;
+  --apple-green: #30d158;
+  --apple-indigo: #5e5ce6;
+  --apple-orange: #ff9f0a;
+  --apple-pink: #ff375f;
+  --apple-purple: #bf5af2;
+  --apple-red: #ff453a;
+  --apple-teal: #64d2ff;
+  --apple-yellow: #ffd60a;
+
+  /* Glassmorphism materials */
+  --apple-glass-bg: rgba(28, 28, 30, 0.75);
+  --apple-glass-border: rgba(255, 255, 255, 0.08);
+  --apple-glass-nav: rgba(18, 18, 18, 0.82);
+}
+
+/* ==========================================================================
+   Mobile-Native & Platform Polish Rules
+   ========================================================================== */
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   touch-action: pan-x pan-y;
-  background-color: #020617;
+  background-color: var(--apple-bg);
+  color: var(--apple-label);
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
-/* Custom scrollbars */
+/* Ensure inputs never trigger iOS viewport auto-zoom */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* Safe Area Utility Insets for Notch / Home Indicators */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Discrete Scrollbars with Apple-Style minimalism */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+  background: var(--apple-fill);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--apple-fill-secondary);
 }

@@ -23,7 +23,7 @@ export const GridBackground: React.FC<GridBackgroundProps> = ({
         <Line
           key={`v-${x}`}
           points={[x, 0, x, zoneHeight]}
-          stroke={x % (gridSize * 10) === 0 ? '#1e293b' : '#0f172a'}
+          stroke={x % (gridSize * 10) === 0 ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)'}
           strokeWidth={x % (gridSize * 10) === 0 ? 1.5 : 0.8}
           listening={false}
         />
@@ -36,7 +36,7 @@ export const GridBackground: React.FC<GridBackgroundProps> = ({
         <Line
           key={`h-${y}`}
           points={[0, y, zoneWidth, y]}
-          stroke={y % (gridSize * 10) === 0 ? '#1e293b' : '#0f172a'}
+          stroke={y % (gridSize * 10) === 0 ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)'}
           strokeWidth={y % (gridSize * 10) === 0 ? 1.5 : 0.8}
           listening={false}
         />
@@ -46,18 +46,15 @@ export const GridBackground: React.FC<GridBackgroundProps> = ({
 
   return (
     <Group listening={false}>
-      {/* Floor boundary rect */}
+      {/* Floor boundary rect - Fast 2D rendering without CPU blur */}
       <Rect
         x={0}
         y={0}
         width={zoneWidth}
         height={zoneHeight}
-        fill="#070b14"
-        stroke="#334155"
-        strokeWidth={2}
-        shadowColor="#000"
-        shadowBlur={20}
-        shadowOpacity={0.6}
+        fill="#0d0d10"
+        stroke="rgba(255, 255, 255, 0.18)"
+        strokeWidth={1.5}
       />
       {lines}
     </Group>

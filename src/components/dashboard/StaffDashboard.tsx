@@ -126,14 +126,14 @@ export const StaffDashboard: React.FC<StaffDashboardProps> = ({ onSimulateCustom
 
   if (!activeZone) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 text-slate-400 h-screen w-screen">
+      <div className="flex-1 flex flex-col items-center justify-center bg-apple-bg text-apple-label-sec h-[100dvh] w-screen">
         <p className="animate-pulse">Iniciando base de datos local y croquis...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-[100dvh] w-screen bg-apple-bg text-apple-label overflow-hidden transition-colors">
       {/* 1. Main Navigation Bar */}
       <Navbar
         currentTab={currentTab}

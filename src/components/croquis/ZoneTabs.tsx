@@ -29,8 +29,8 @@ export const ZoneTabs: React.FC<ZoneTabsProps> = ({
   };
 
   return (
-    <div className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/80 border-b border-slate-800 text-xs overflow-x-auto no-scrollbar">
-      <div className="flex items-center gap-1 text-slate-500 font-semibold uppercase tracking-wider mr-2 text-[10px]">
+    <div className="flex items-center gap-1.5 px-4 py-2 bg-apple-card/60 backdrop-blur-md border-b border-apple-border text-xs overflow-x-auto no-scrollbar transition-colors">
+      <div className="flex items-center gap-1 text-apple-label-sec font-semibold uppercase tracking-wider mr-2 text-[10px]">
         <Layers className="w-3.5 h-3.5" /> Ambientes:
       </div>
 
@@ -40,10 +40,10 @@ export const ZoneTabs: React.FC<ZoneTabsProps> = ({
           <button
             key={zone.id}
             onClick={() => onSelectZone(zone.id)}
-            className={`px-3.5 py-1.5 rounded-xl font-medium transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl font-medium transition-all active:scale-[0.96] touch-manipulation cursor-pointer ${
               isActive
-                ? 'bg-slate-800 text-emerald-400 font-semibold shadow-inner border border-slate-700/80'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                ? 'bg-apple-fill text-apple-label font-bold border border-apple-border shadow-sm'
+                : 'text-apple-label-sec hover:text-apple-label hover:bg-apple-fill/50'
             }`}
           >
             {zone.name}
@@ -61,18 +61,18 @@ export const ZoneTabs: React.FC<ZoneTabsProps> = ({
                 onChange={(e) => setNewZoneName(e.target.value)}
                 placeholder="Nombre del ambiente..."
                 autoFocus
-                className="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-emerald-500 w-36"
+                className="bg-apple-fill border border-apple-border rounded-xl px-2.5 py-1 text-xs text-apple-label placeholder:text-apple-label-ter focus:outline-none focus:border-apple-green w-36"
               />
               <button
                 type="submit"
-                className="p-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg"
+                className="p-1 bg-apple-green hover:opacity-95 text-white rounded-lg active:scale-[0.96] cursor-pointer"
               >
                 <Check className="w-3.5 h-3.5" />
               </button>
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="p-1 text-slate-400 hover:text-white"
+                className="p-1 text-apple-label-sec hover:text-apple-label cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -80,7 +80,7 @@ export const ZoneTabs: React.FC<ZoneTabsProps> = ({
           ) : (
             <button
               onClick={() => setIsAdding(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 border border-dashed border-slate-700 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-apple-label-sec hover:text-apple-label hover:bg-apple-fill border border-dashed border-apple-border transition-all active:scale-[0.96] touch-manipulation cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Nuevo Ambiente</span>
