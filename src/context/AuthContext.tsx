@@ -33,6 +33,7 @@ export interface AuthContextType {
     error: AuthError | Error | null;
   }>;
   signOut: () => Promise<{ error: AuthError | Error | null }>;
+  continueAsDemo: (demoRole?: 'manager' | 'staff') => void;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -100,7 +101,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (error) {
           console.warn('Error reading active session:', error);
         }
-        applySession(data?.session ?? null);
+        if (data?.session) {
+          applySession(data.session);
+        } else {
+          try {
+            const rawDemo =
+              typeof window !== 'undefined' && window.sessionStorage
+                ? window.sessionStorage.getItem('barflow_demo_session')
+                : null;
+            if (rawDemo) {
+              applySession(JSON.parse(rawDemo));
+            } else {
+              applySession(null);
+            }
+          } catch {
+            applySession(null);
+          }
+        }
         setIsLoading(false);
       })
       .catch((err) => {
@@ -177,6 +194,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     try {
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.removeItem('barflow_demo_session');
+        }
+      } catch {}
       const { error } = await supabase.auth.signOut();
       applySession(null);
       if (error) {
@@ -189,6 +211,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const continueAsDemo = useCallback(
+    (demoRole: 'manager' | 'staff' = 'manager') => {
+      const demoUser = {
+        id: `demo-${demoRole}-1`,
+        app_metadata: { provider: 'demo' },
+        user_metadata: {
+          name: demoRole === 'manager' ? 'Gestor Demo' : 'Colaborador Demo',
+          role: demoRole,
+          tenant_id: 'tenant-demo',
+          tenantId: 'tenant-demo',
+        },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        email: demoRole === 'manager' ? 'gestor.demo@barflow.app' : 'staff.demo@barflow.app',
+      } as unknown as User;
+
+      const demoSession = {
+        access_token: 'demo-token-local',
+        token_type: 'bearer',
+        expires_in: 86400,
+        refresh_token: 'demo-refresh-token',
+        user: demoUser,
+      } as unknown as Session;
+
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem('barflow_demo_session', JSON.stringify(demoSession));
+        }
+      } catch {}
+
+      applySession(demoSession);
+    },
+    [applySession]
+  );
+
   const value: AuthContextType = {
     user,
     session,
@@ -198,6 +255,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signIn,
     signUp,
     signOut,
+    continueAsDemo,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

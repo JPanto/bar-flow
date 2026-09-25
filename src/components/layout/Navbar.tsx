@@ -7,7 +7,10 @@ import {
   WifiOff,
   Database,
   BellRing,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 export type AppTab = 'service' | 'editor' | 'reservations';
 
@@ -32,6 +35,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCallsQueue,
   onOpenBackup,
 }) => {
+  const { user, role, signOut } = useAuth();
+
   return (
     <header className="h-16 bg-slate-900 border-b border-slate-800 px-4 sm:px-6 flex items-center justify-between shrink-0 select-none z-30">
       {/* Brand & Logo */}
@@ -140,6 +145,47 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           )}
         </button>
+
+        {/* User Session & Role Indicator */}
+        {user && (
+          <div className="flex items-center gap-2 pl-2 sm:pl-2.5 border-l border-slate-800">
+            {/* User Avatar & Email */}
+            <div className="flex items-center gap-2" title={`Sesión activa: ${user.email}`}>
+              <div className="w-7 h-7 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 text-xs font-bold shrink-0">
+                {user.email ? user.email.charAt(0).toUpperCase() : <UserIcon className="w-3.5 h-3.5" />}
+              </div>
+              <div className="hidden xl:flex flex-col text-left">
+                <span className="text-xs font-semibold text-slate-200 max-w-[120px] truncate leading-tight">
+                  {user.email}
+                </span>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {role === 'manager' ? 'Gestor' : 'Colaborador'}
+                </span>
+              </div>
+            </div>
+
+            {/* Role Badge */}
+            <span
+              className={`hidden sm:inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider border ${
+                role === 'manager'
+                  ? 'bg-purple-950/60 text-purple-300 border-purple-800/60'
+                  : 'bg-blue-950/60 text-blue-300 border-blue-800/60'
+              }`}
+            >
+              {role === 'manager' ? 'Gestor' : 'Colaborador'}
+            </span>
+
+            {/* Logout button */}
+            <button
+              onClick={() => signOut()}
+              className="p-1.5 sm:px-2 sm:py-1 rounded-xl bg-slate-800 hover:bg-red-950/50 text-slate-400 hover:text-red-400 border border-slate-700/80 hover:border-red-800/40 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Salir</span>
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
