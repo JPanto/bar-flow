@@ -4,9 +4,15 @@ import { Users, Utensils, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ServiceStatsBarProps {
   tables: TableElement[];
+  pendingCallsCount?: number;
+  pendingOrdersCount?: number;
 }
 
-export const ServiceStatsBar: React.FC<ServiceStatsBarProps> = ({ tables }) => {
+export const ServiceStatsBar: React.FC<ServiceStatsBarProps> = ({
+  tables,
+  pendingCallsCount = 0,
+  pendingOrdersCount = 0,
+}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const total = tables.length;
@@ -55,6 +61,26 @@ export const ServiceStatsBar: React.FC<ServiceStatsBarProps> = ({ tables }) => {
               <span className="font-bold text-apple-orange">{reserved}</span>
             </div>
 
+            {/* Llamados Pendientes */}
+            {pendingCallsCount > 0 && (
+              <div className="flex items-center gap-1.5 bg-apple-orange/15 border border-apple-orange/30 px-2.5 py-1 rounded-xl text-xs text-apple-orange">
+                <span className="w-2 h-2 rounded-full bg-apple-orange animate-pulse shrink-0" />
+                <span className="font-bold">
+                  {pendingCallsCount} {pendingCallsCount === 1 ? 'llamado' : 'llamados'}
+                </span>
+              </div>
+            )}
+
+            {/* Pedidos Pendientes */}
+            {pendingOrdersCount > 0 && (
+              <div className="flex items-center gap-1.5 bg-apple-blue/15 border border-apple-blue/30 px-2.5 py-1 rounded-xl text-xs text-apple-blue">
+                <span className="w-2 h-2 rounded-full bg-apple-blue animate-pulse shrink-0" />
+                <span className="font-bold">
+                  📦 {pendingOrdersCount} {pendingOrdersCount === 1 ? 'pedido en espera' : 'pedidos en espera'}
+                </span>
+              </div>
+            )}
+
             {/* Comensales y Ocupación */}
             <div className="flex items-center gap-2 bg-apple-fill px-2.5 py-1 rounded-xl text-xs ml-auto sm:ml-0">
               <Users className="w-3.5 h-3.5 text-apple-label-sec shrink-0" />
@@ -79,6 +105,8 @@ export const ServiceStatsBar: React.FC<ServiceStatsBarProps> = ({ tables }) => {
             <span className="font-medium">Métricas de servicio ocultas</span>
             <span className="text-[10px] bg-apple-fill px-2 py-0.5 rounded-lg text-apple-label">
               {occupied}/{total} mesas • {occupancyRate}%
+              {pendingCallsCount > 0 ? ` • 🔔 ${pendingCallsCount}` : ''}
+              {pendingOrdersCount > 0 ? ` • 📦 ${pendingOrdersCount}` : ''}
             </span>
           </div>
         )}
